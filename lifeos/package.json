@@ -1,0 +1,29 @@
+{
+  "name": "lifeos",
+  "version": "1.0.0",
+  "description": "Full-Stack Personal Goal & Life Management System",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=@lifeos/backend",
+    "dev:frontend": "npm run dev --workspace=@lifeos/frontend",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "test:backend": "npm run test --workspace=@lifeos/backend",
+    "test:frontend": "npm run test --workspace=@lifeos/frontend",
+    "test:coverage": "npm run test:coverage --workspaces",
+    "db:generate": "npm run db:generate --workspace=@lifeos/backend",
+    "db:push": "npm run db:push --workspace=@lifeos/backend",
+    "db:migrate": "npm run db:migrate --workspace=@lifeos/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,488 @@
+// Prisma Schema for LifeOS
+// Full-Stack Personal Goal & Life Management System
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============== USER & AUTH ==============
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  name              String
+  age               Int?
+  country           String?
+  currency          Currency @default(INR)
+  monthlyIncome     Float?
+  riskPreference    RiskPreference @default(MEDIUM)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  financialGoals    FinancialGoal[]
+  fitnessGoals      FitnessGoal[]
+  habits            Habit[]
+  lifeSystems       LifeSystem[]
+  budgets           Budget[]
+  refreshTokens     RefreshToken[]
+  preferences       UserPreferences?
+  journalEntries    JournalEntry[]
+  achievements      UserAchievement[]
+  progressSnapshots ProgressSnapshot[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+enum Currency {
+  USD
+  INR
+  EUR
+  GBP
+}
+
+enum RiskPreference {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ============== FINANCIAL GOALS ==============
+
+model FinancialGoal {
+  id                  String            @id @default(uuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  type                FinancialGoalType
+  targetAmount        Float
+  currentAmount       Float             @default(0)
+  monthlyContribution Float             @default(0)
+  startDate           DateTime
+  targetDate          DateTime
+  status              GoalStatus        @default(ON_TRACK)
+  isArchived          Boolean           @default(false)
+  isPaused            Boolean           @default(false)
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  linkedSystems       LifeSystem[]
+
+  @@map("financial_goals")
+}
+
+enum FinancialGoalType {
+  EMERGENCY_FUND
+  MARRIAGE_FUND
+  CAR_FUND
+  HOME_DOWN_PAYMENT
+  INVESTMENTS
+  RETIREMENT
+  EDUCATION
+  VACATION
+  CUSTOM
+}
+
+enum GoalStatus {
+  ON_TRACK
+  NEEDS_FOCUS
+  BEHIND
+  COMPLETED
+  PAUSED
+  ARCHIVED
+}
+
+// ============== FITNESS GOALS ==============
+
+model FitnessGoal {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  metricType      FitnessMetricType
+  startValue      Float
+  currentValue    Float
+  targetValue     Float
+  unit            String
+  startDate       DateTime
+  targetDate      DateTime
+  status          GoalStatus      @default(ON_TRACK)
+  isAchieved      Boolean         @default(false)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Track progress history
+  progressHistory FitnessProgress[]
+  linkedSystems   LifeSystem[]
+
+  @@map("fitness_goals")
+}
+
+model FitnessProgress {
+  id              String      @id @default(uuid())
+  fitnessGoalId   String
+  fitnessGoal     FitnessGoal @relation(fields: [fitnessGoalId], references: [id], onDelete: Cascade)
+  value           Float
+  recordedAt      DateTime    @default(now())
+  notes           String?
+
+  @@map("fitness_progress")
+}
+
+enum FitnessMetricType {
+  WEIGHT
+  BODY_FAT
+  STEPS
+  STRENGTH
+  CARDIO
+  FLEXIBILITY
+  CUSTOM
+}
+
+// ============== HABITS ==============
+
+model Habit {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  frequency     HabitFrequency
+  targetCount   Int           @default(1)  // e.g., 5x per week
+  currentStreak Int           @default(0)
+  longestStreak Int           @default(0)
+  isActive      Boolean       @default(true)
+  // Quantity tracking
+  isQuantity    Boolean       @default(false)  // true for quantity-based habits
+  quantityUnit  String?       // e.g., "glasses", "pages", "minutes"
+  quantityTarget Float?       // e.g., 8 glasses, 30 pages
+  // Streak freeze
+  streakFreezeUsed DateTime?  // Last date streak freeze was used
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Track check-ins
+  checkIns      HabitCheckIn[]
+  linkedSystems LifeSystem[]
+
+  @@index([userId, isActive])
+  @@map("habits")
+}
+
+model HabitCheckIn {
+  id          String   @id @default(uuid())
+  habitId     String
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  completed   Boolean  @default(true)
+  quantity    Float?   // For quantity-based habits
+  notes       String?
+  skipped     Boolean  @default(false)  // Marked as intentionally skipped
+  createdAt   DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([habitId, date])
+  @@map("habit_check_ins")
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  WEEKDAYS
+  WEEKENDS
+  CUSTOM
+}
+
+// ============== LIFE SYSTEMS ==============
+
+model LifeSystem {
+  id                String          @id @default(uuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  category          SystemCategory
+  isActive          Boolean         @default(true)
+  adherenceTarget   Float           @default(80)  // Target adherence percentage
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Track adherence
+  adherenceLogs     SystemAdherence[]
+  
+  // Linked goals and habits
+  linkedFinancialGoals FinancialGoal[]
+  linkedFitnessGoals   FitnessGoal[]
+  linkedHabits         Habit[]
+
+  @@map("life_systems")
+}
+
+model SystemAdherence {
+  id            String     @id @default(uuid())
+  systemId      String
+  system        LifeSystem @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  date          DateTime   @db.Date
+  adhered       Boolean
+  notes         String?
+  createdAt     DateTime   @default(now())
+
+  @@unique([systemId, date])
+  @@map("system_adherence")
+}
+
+enum SystemCategory {
+  FINANCE
+  HEALTH
+  PRODUCTIVITY
+  RELATIONSHIPS
+  LEARNING
+  CUSTOM
+}
+
+// ============== BUDGET ==============
+
+model Budget {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month       Int          // 1-12
+  year        Int
+  income      Float
+  rolloverAmount Float     @default(0)  // Carried over from previous month
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Budget items
+  items       BudgetItem[]
+
+  @@unique([userId, month, year])
+  @@index([userId, year, month])
+  @@map("budgets")
+}
+
+model BudgetItem {
+  id          String         @id @default(uuid())
+  budgetId    String
+  budget      Budget         @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category    BudgetCategory
+  planned     Float
+  actual      Float          @default(0)
+  rollover    Float          @default(0)  // Rollover from this category
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([budgetId, category])
+  @@map("budget_items")
+}
+
+enum BudgetCategory {
+  RENT
+  FOOD
+  TRANSPORT
+  SUBSCRIPTIONS
+  UTILITIES
+  HEALTHCARE
+  ENTERTAINMENT
+  SHOPPING
+  SAVINGS
+  INVESTMENTS
+  MISCELLANEOUS
+}
+
+// ============== PROGRESS SNAPSHOTS ==============
+
+model ProgressSnapshot {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  lifeScore     Int
+  financeScore  Int
+  fitnessScore  Int
+  habitsScore   Int
+  systemsScore  Int
+  totalSaved    Float    @default(0)
+  activeHabits  Int      @default(0)
+  activeGoals   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("progress_snapshots")
+}
+
+// ============== ACHIEVEMENTS ==============
+
+model Achievement {
+  id          String   @id @default(uuid())
+  code        String   @unique  // e.g., "FIRST_GOAL", "STREAK_7"
+  name        String
+  description String
+  icon        String
+  category    AchievementCategory
+  criteria    Json     // { type: "streak", value: 7 }
+  points      Int      @default(10)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+  notified      Boolean     @default(false)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+enum AchievementCategory {
+  FINANCE
+  FITNESS
+  HABITS
+  SYSTEMS
+  GENERAL
+}
+
+// ============== GOAL TEMPLATES ==============
+
+model GoalTemplate {
+  id              String            @id @default(uuid())
+  name            String
+  description     String
+  category        TemplateCategory
+  type            String            // Maps to FinancialGoalType or FitnessMetricType
+  defaultTarget   Float?
+  defaultDuration Int?              // Days
+  icon            String?
+  isPublic        Boolean           @default(true)
+  createdBy       String?           // User ID if user-created
+  usageCount      Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([category, isPublic])
+  @@map("goal_templates")
+}
+
+enum TemplateCategory {
+  FINANCIAL
+  FITNESS
+  HABIT
+}
+
+// ============== GOAL MILESTONES ==============
+
+model GoalMilestone {
+  id              String    @id @default(uuid())
+  goalId          String
+  goalType        String    // "FINANCIAL" or "FITNESS"
+  name            String
+  targetValue     Float
+  isCompleted     Boolean   @default(false)
+  completedAt     DateTime?
+  order           Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([goalId, goalType])
+  @@map("goal_milestones")
+}
+
+// ============== RECURRING CONTRIBUTIONS ==============
+
+model RecurringContribution {
+  id              String              @id @default(uuid())
+  userId          String
+  goalId          String
+  goalType        String              // "FINANCIAL"
+  amount          Float
+  frequency       ContributionFrequency
+  nextRunDate     DateTime
+  lastRunDate     DateTime?
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([userId, isActive])
+  @@index([nextRunDate, isActive])
+  @@map("recurring_contributions")
+}
+
+enum ContributionFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+// ============== JOURNAL ENTRIES ==============
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  content     String
+  mood        Int?     // 1-5 scale
+  tags        String[] // Array of tags
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("journal_entries")
+}
+
+// ============== USER PREFERENCES ==============
+
+model UserPreferences {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme               String   @default("light")  // "light", "dark", "system"
+  language            String   @default("en")
+  timezone            String   @default("UTC")
+  weekStartsOn        Int      @default(0)        // 0 = Sunday, 1 = Monday
+  emailNotifications  Boolean  @default(true)
+  pushNotifications   Boolean  @default(true)
+  habitReminders      Boolean  @default(true)
+  reminderTime        String   @default("20:00")  // HH:MM format
+  dashboardLayout     Json?    // Custom widget layout
+  streakFreezeCount   Int      @default(0)        // Available streak freezes
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
