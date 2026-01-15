@@ -18,7 +18,11 @@ import {
   Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  FileText,
+  TrendingUp,
+  Search,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -33,6 +37,10 @@ const navigation = [
   { name: 'Budget', href: '/budget', icon: Wallet },
   { name: 'Journal', href: '/journal', icon: BookOpen },
   { name: 'Achievements', href: '/achievements', icon: Trophy },
+  { name: 'Templates', href: '/templates', icon: FileText },
+  { name: 'Projections', href: '/projections', icon: TrendingUp },
+  { name: 'Search', href: '/search', icon: Search },
+  { name: 'Export', href: '/export', icon: Download },
 ];
 
 const bottomNavigation = [

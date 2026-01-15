@@ -48,3 +48,15 @@ export function getProgressColor(progress: number): string {
   if (progress >= 40) return 'bg-warning-500';
   return 'bg-danger-500';
 }
+
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}

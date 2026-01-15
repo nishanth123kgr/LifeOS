@@ -91,12 +91,15 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next: N
 // Create entry
 router.post('/', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { content, date, mood, tags } = req.body;
+    const { content, title, date, mood, energy, gratitude, tags } = req.body;
     
     const entry = await journalService.create(req.userId!, {
       content,
+      title,
       date: date ? new Date(date) : undefined,
       mood,
+      energy,
+      gratitude,
       tags,
     });
 
@@ -109,11 +112,14 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response, next: Nex
 // Update entry
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { content, mood, tags } = req.body;
+    const { content, title, mood, energy, gratitude, tags } = req.body;
     
     const entry = await journalService.update(req.params.id, req.userId!, {
       content,
+      title,
       mood,
+      energy,
+      gratitude,
       tags,
     });
 

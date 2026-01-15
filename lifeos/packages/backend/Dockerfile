@@ -8,7 +8,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Use npm install with legacy peer deps for speed
-RUN npm install --legacy-peer-deps
+RUN npm install --legacy-peer-deps --dd
 
 # Generate Prisma client
 RUN npx prisma generate

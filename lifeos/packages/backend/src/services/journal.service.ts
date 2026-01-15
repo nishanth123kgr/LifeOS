@@ -3,6 +3,13 @@ import logger from '../lib/logger.js';
 
 export class JournalService {
   /**
+   * Calculate word count
+   */
+  private countWords(text: string): number {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  /**
    * Create a journal entry
    */
   async create(
@@ -10,20 +17,30 @@ export class JournalService {
     data: {
       content: string;
       date?: Date;
+      title?: string;
       mood?: number; // 1-5 scale
+      energy?: number; // 1-5 scale
+      gratitude?: string;
       tags?: string[];
     }
   ) {
     const entryDate = data.date || new Date();
     entryDate.setHours(0, 0, 0, 0);
 
+    const wordCount = this.countWords(data.content) + 
+      (data.gratitude ? this.countWords(data.gratitude) : 0);
+
     const entry = await prisma.journalEntry.create({
       data: {
         userId,
         date: entryDate,
+        title: data.title,
         content: data.content,
+        gratitude: data.gratitude,
         mood: data.mood,
+        energy: data.energy,
         tags: data.tags || [],
+        wordCount,
       },
     });
 
@@ -109,7 +126,10 @@ export class JournalService {
     userId: string,
     data: {
       content?: string;
+      title?: string;
       mood?: number;
+      energy?: number;
+      gratitude?: string;
       tags?: string[];
     }
   ) {
@@ -121,9 +141,16 @@ export class JournalService {
       throw new Error('Entry not found');
     }
 
+    const wordCount = data.content 
+      ? this.countWords(data.content) + (data.gratitude ? this.countWords(data.gratitude) : 0)
+      : undefined;
+
     return prisma.journalEntry.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        ...(wordCount !== undefined && { wordCount }),
+      },
     });
   }
 
