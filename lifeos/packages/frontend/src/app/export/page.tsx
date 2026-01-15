@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, FileJson, FileSpreadsheet, Calendar, Check, Loader2 } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, Calendar, Check, Loader2, Package } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -234,8 +234,9 @@ export default function ExportPage() {
 
         {/* Info Card */}
         <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">
-            📦 Your Data, Your Control
+          <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Your Data, Your Control
           </h3>
           <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
             <li>• Exports include all your personal data stored in LifeOS</li>

@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Trophy, Lock, Star, Zap, Target, Dumbbell, CheckSquare, Settings2, Award } from 'lucide-react';
+import { 
+  Trophy, Lock, Star, Zap, Target, Dumbbell, CheckSquare, Settings2, Award,
+  Flame, CheckCircle, ClipboardList, PiggyBank, Landmark, Gem, PartyPopper,
+  BarChart3, Footprints, Medal, Settings, TrendingUp, Sparkles, Crown
+} from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/Card';
 import api from '@/lib/api';
@@ -17,6 +21,29 @@ interface Achievement {
   unlocked: boolean;
   unlockedAt?: string;
 }
+
+// Map icon names to Lucide components
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  target: Target,
+  trophy: Trophy,
+  flame: Flame,
+  dumbbell: Dumbbell,
+  award: Award,
+  'check-circle': CheckCircle,
+  'clipboard-list': ClipboardList,
+  'piggy-bank': PiggyBank,
+  landmark: Landmark,
+  gem: Gem,
+  'party-popper': PartyPopper,
+  'bar-chart-3': BarChart3,
+  footprints: Footprints,
+  medal: Medal,
+  settings: Settings,
+  'trending-up': TrendingUp,
+  star: Star,
+  sparkles: Sparkles,
+  crown: Crown,
+};
 
 const categoryIcons: Record<string, any> = {
   GENERAL: Star,
@@ -203,8 +230,11 @@ export default function AchievementsPage() {
 
                   <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className={`p-3 rounded-xl text-2xl ${categoryColors[category]}`}>
-                      {achievement.icon}
+                    <div className={`p-3 rounded-xl ${categoryColors[category]}`}>
+                      {(() => {
+                        const AchievementIcon = iconMap[achievement.icon] || Star;
+                        return <AchievementIcon className="w-6 h-6" />;
+                      })()}
                     </div>
 
                     <div className="flex-1 min-w-0">

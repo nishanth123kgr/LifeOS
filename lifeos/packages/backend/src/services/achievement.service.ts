@@ -13,35 +13,35 @@ const ACHIEVEMENTS: Array<{
   points: number;
 }> = [
   // General
-  { code: 'FIRST_GOAL', name: 'First Step', description: 'Create your first goal', icon: '🎯', category: AchievementCategory.GENERAL, criteria: { type: 'goal_count', value: 1 }, points: 10 },
-  { code: 'GOAL_MASTER', name: 'Goal Master', description: 'Create 10 goals', icon: '🏆', category: AchievementCategory.GENERAL, criteria: { type: 'goal_count', value: 10 }, points: 50 },
+  { code: 'FIRST_GOAL', name: 'First Step', description: 'Create your first goal', icon: 'target', category: AchievementCategory.GENERAL, criteria: { type: 'goal_count', value: 1 }, points: 10 },
+  { code: 'GOAL_MASTER', name: 'Goal Master', description: 'Create 10 goals', icon: 'trophy', category: AchievementCategory.GENERAL, criteria: { type: 'goal_count', value: 10 }, points: 50 },
   
   // Habits
-  { code: 'STREAK_7', name: 'Week Warrior', description: 'Maintain a 7-day streak', icon: '🔥', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 7 }, points: 20 },
-  { code: 'STREAK_30', name: 'Monthly Master', description: 'Maintain a 30-day streak', icon: '💪', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 30 }, points: 50 },
-  { code: 'STREAK_100', name: 'Century Club', description: 'Maintain a 100-day streak', icon: '💯', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 100 }, points: 100 },
-  { code: 'HABIT_STARTER', name: 'Habit Starter', description: 'Create your first habit', icon: '✅', category: AchievementCategory.HABITS, criteria: { type: 'habit_count', value: 1 }, points: 10 },
-  { code: 'HABIT_COLLECTOR', name: 'Habit Collector', description: 'Track 5 habits', icon: '📋', category: AchievementCategory.HABITS, criteria: { type: 'habit_count', value: 5 }, points: 30 },
+  { code: 'STREAK_7', name: 'Week Warrior', description: 'Maintain a 7-day streak', icon: 'flame', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 7 }, points: 20 },
+  { code: 'STREAK_30', name: 'Monthly Master', description: 'Maintain a 30-day streak', icon: 'dumbbell', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 30 }, points: 50 },
+  { code: 'STREAK_100', name: 'Century Club', description: 'Maintain a 100-day streak', icon: 'award', category: AchievementCategory.HABITS, criteria: { type: 'streak', value: 100 }, points: 100 },
+  { code: 'HABIT_STARTER', name: 'Habit Starter', description: 'Create your first habit', icon: 'check-circle', category: AchievementCategory.HABITS, criteria: { type: 'habit_count', value: 1 }, points: 10 },
+  { code: 'HABIT_COLLECTOR', name: 'Habit Collector', description: 'Track 5 habits', icon: 'clipboard-list', category: AchievementCategory.HABITS, criteria: { type: 'habit_count', value: 5 }, points: 30 },
 
   // Finance
-  { code: 'FIRST_SAVE', name: 'First Savings', description: 'Save your first amount', icon: '💰', category: AchievementCategory.FINANCE, criteria: { type: 'savings', value: 1 }, points: 10 },
-  { code: 'SAVER_10K', name: 'Smart Saver', description: 'Save ₹10,000 total', icon: '🏦', category: AchievementCategory.FINANCE, criteria: { type: 'total_saved', value: 10000 }, points: 30 },
-  { code: 'SAVER_100K', name: 'Wealth Builder', description: 'Save ₹1,00,000 total', icon: '💎', category: AchievementCategory.FINANCE, criteria: { type: 'total_saved', value: 100000 }, points: 100 },
-  { code: 'GOAL_COMPLETE', name: 'Goal Crusher', description: 'Complete your first financial goal', icon: '🎉', category: AchievementCategory.FINANCE, criteria: { type: 'goal_completed', value: 1 }, points: 50 },
-  { code: 'BUDGET_MASTER', name: 'Budget Master', description: 'Stay under budget for a month', icon: '📊', category: AchievementCategory.FINANCE, criteria: { type: 'under_budget', value: 1 }, points: 40 },
+  { code: 'FIRST_SAVE', name: 'First Savings', description: 'Save your first amount', icon: 'piggy-bank', category: AchievementCategory.FINANCE, criteria: { type: 'savings', value: 1 }, points: 10 },
+  { code: 'SAVER_10K', name: 'Smart Saver', description: 'Save ₹10,000 total', icon: 'landmark', category: AchievementCategory.FINANCE, criteria: { type: 'total_saved', value: 10000 }, points: 30 },
+  { code: 'SAVER_100K', name: 'Wealth Builder', description: 'Save ₹1,00,000 total', icon: 'gem', category: AchievementCategory.FINANCE, criteria: { type: 'total_saved', value: 100000 }, points: 100 },
+  { code: 'GOAL_COMPLETE', name: 'Goal Crusher', description: 'Complete your first financial goal', icon: 'party-popper', category: AchievementCategory.FINANCE, criteria: { type: 'goal_completed', value: 1 }, points: 50 },
+  { code: 'BUDGET_MASTER', name: 'Budget Master', description: 'Stay under budget for a month', icon: 'bar-chart-3', category: AchievementCategory.FINANCE, criteria: { type: 'under_budget', value: 1 }, points: 40 },
 
   // Fitness
-  { code: 'FITNESS_START', name: 'Fitness Journey', description: 'Create your first fitness goal', icon: '🏃', category: AchievementCategory.FITNESS, criteria: { type: 'fitness_goal', value: 1 }, points: 10 },
-  { code: 'FITNESS_COMPLETE', name: 'Fit Achiever', description: 'Complete a fitness goal', icon: '🥇', category: AchievementCategory.FITNESS, criteria: { type: 'fitness_completed', value: 1 }, points: 50 },
+  { code: 'FITNESS_START', name: 'Fitness Journey', description: 'Create your first fitness goal', icon: 'footprints', category: AchievementCategory.FITNESS, criteria: { type: 'fitness_goal', value: 1 }, points: 10 },
+  { code: 'FITNESS_COMPLETE', name: 'Fit Achiever', description: 'Complete a fitness goal', icon: 'medal', category: AchievementCategory.FITNESS, criteria: { type: 'fitness_completed', value: 1 }, points: 50 },
 
   // Systems
-  { code: 'SYSTEM_START', name: 'Systems Thinker', description: 'Create your first life system', icon: '⚙️', category: AchievementCategory.SYSTEMS, criteria: { type: 'system_count', value: 1 }, points: 10 },
-  { code: 'SYSTEM_ADHERENCE', name: 'System Follower', description: 'Maintain 80% adherence for 30 days', icon: '📈', category: AchievementCategory.SYSTEMS, criteria: { type: 'system_adherence', value: 80 }, points: 50 },
+  { code: 'SYSTEM_START', name: 'Systems Thinker', description: 'Create your first life system', icon: 'settings', category: AchievementCategory.SYSTEMS, criteria: { type: 'system_count', value: 1 }, points: 10 },
+  { code: 'SYSTEM_ADHERENCE', name: 'System Follower', description: 'Maintain 80% adherence for 30 days', icon: 'trending-up', category: AchievementCategory.SYSTEMS, criteria: { type: 'system_adherence', value: 80 }, points: 50 },
 
   // Life Score
-  { code: 'SCORE_50', name: 'Balanced Life', description: 'Reach a Life Score of 50', icon: '⭐', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 50 }, points: 30 },
-  { code: 'SCORE_75', name: 'Life Optimizer', description: 'Reach a Life Score of 75', icon: '🌟', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 75 }, points: 50 },
-  { code: 'SCORE_90', name: 'Life Master', description: 'Reach a Life Score of 90', icon: '👑', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 90 }, points: 100 },
+  { code: 'SCORE_50', name: 'Balanced Life', description: 'Reach a Life Score of 50', icon: 'star', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 50 }, points: 30 },
+  { code: 'SCORE_75', name: 'Life Optimizer', description: 'Reach a Life Score of 75', icon: 'sparkles', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 75 }, points: 50 },
+  { code: 'SCORE_90', name: 'Life Master', description: 'Reach a Life Score of 90', icon: 'crown', category: AchievementCategory.GENERAL, criteria: { type: 'life_score', value: 90 }, points: 100 },
 ];
 
 export class AchievementService {

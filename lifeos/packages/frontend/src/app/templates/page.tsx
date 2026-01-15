@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Star, Target, Dumbbell, CheckSquare, Copy, Check } from 'lucide-react';
+import { FileText, Plus, Star, Target, Dumbbell, CheckSquare, Copy, Check, Lightbulb } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -228,8 +228,9 @@ export default function TemplatesPage() {
 
         {/* Info Card */}
         <Card className="bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
-          <h3 className="font-semibold text-primary-900 dark:text-primary-300 mb-2">
-            💡 How Templates Work
+          <h3 className="font-semibold text-primary-900 dark:text-primary-300 mb-2 flex items-center gap-2">
+            <Lightbulb className="w-5 h-5" />
+            How Templates Work
           </h3>
           <ul className="text-sm text-primary-800 dark:text-primary-400 space-y-1">
             <li>• Choose a template that matches your goal</li>
