@@ -11,6 +11,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import api from '@/lib/api';
 import { 
   Plus, 
@@ -438,62 +439,54 @@ export default function HabitsPage() {
         )}
 
         {/* Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {editingHabit ? 'Edit Habit' : 'Create Habit'}
-                </h2>
-                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+        <Modal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={editingHabit ? 'Edit Habit' : 'Create Habit'}
+          icon={<Repeat className="w-5 h-5" />}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Input
+              label="Habit Name"
+              placeholder="e.g., Morning Workout"
+              error={errors.name?.message}
+              {...register('name')}
+            />
 
-              <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-                <Input
-                  label="Habit Name"
-                  placeholder="e.g., Morning Workout"
-                  error={errors.name?.message}
-                  {...register('name')}
-                />
+            <Input
+              label="Description (optional)"
+              placeholder="e.g., 30 minutes of exercise"
+              {...register('description')}
+            />
 
-                <Input
-                  label="Description (optional)"
-                  placeholder="e.g., 30 minutes of exercise"
-                  {...register('description')}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Frequency"
-                    options={frequencies}
-                    {...register('frequency')}
-                  />
-                  <Input
-                    label="Target Count"
-                    type="number"
-                    min="1"
-                    {...register('targetCount', { valueAsNumber: true })}
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button type="button" variant="secondary" onClick={closeModal} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    isLoading={createMutation.isPending || updateMutation.isPending}
-                  >
-                    {editingHabit ? 'Update Habit' : 'Create Habit'}
-                  </Button>
-                </div>
-              </form>
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Frequency"
+                options={frequencies}
+                {...register('frequency')}
+              />
+              <Input
+                label="Target Count"
+                type="number"
+                min="1"
+                {...register('targetCount', { valueAsNumber: true })}
+              />
             </div>
-          </div>
-        )}
+
+            <div className="flex gap-3 pt-4">
+              <Button type="button" variant="secondary" onClick={closeModal} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                isLoading={createMutation.isPending || updateMutation.isPending}
+              >
+                {editingHabit ? 'Update Habit' : 'Create Habit'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </DashboardLayout>
   );

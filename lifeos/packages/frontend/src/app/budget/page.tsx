@@ -11,6 +11,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Modal } from '@/components/ui/Modal';
 import { DonutChart } from '@/components/charts/Charts';
 import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -613,50 +614,44 @@ export default function BudgetPage() {
       )}
 
       {/* Create Budget Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Budget</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Select
-                  label="Month"
-                  options={months}
-                  {...register('month', { valueAsNumber: true })}
-                />
-                <Input
-                  label="Year"
-                  type="number"
-                  {...register('year', { valueAsNumber: true })}
-                />
-              </div>
-
-              <Input
-                label="Monthly Income"
-                type="number"
-                placeholder="50000"
-                error={errors.income?.message}
-                {...register('income', { valueAsNumber: true })}
-              />
-
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1" isLoading={createMutation.isPending}>
-                  Create Budget
-                </Button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create Budget"
+        icon={<Wallet className="w-5 h-5" />}
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Month"
+              options={months}
+              {...register('month', { valueAsNumber: true })}
+            />
+            <Input
+              label="Year"
+              type="number"
+              {...register('year', { valueAsNumber: true })}
+            />
           </div>
-        </div>
-      )}
+
+          <Input
+            label="Monthly Income"
+            type="number"
+            placeholder="50000"
+            error={errors.income?.message}
+            {...register('income', { valueAsNumber: true })}
+          />
+
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" isLoading={createMutation.isPending}>
+              Create Budget
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </DashboardLayout>
   );
 }
