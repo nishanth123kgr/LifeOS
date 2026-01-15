@@ -2,26 +2,20 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { format, isToday } from 'date-fns';
+import { isToday } from 'date-fns';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
 import api from '@/lib/api';
+import Link from 'next/link';
 import { 
   Plus, 
-  X, 
   Edit2, 
   Trash2, 
   Flame, 
   Check, 
   CheckSquare, 
-  Calendar,
   Target,
   Trophy,
   Zap,
@@ -29,15 +23,6 @@ import {
   Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const habitSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  frequency: z.string(),
-  targetCount: z.number().min(1).optional(),
-});
-
-type HabitForm = z.infer<typeof habitSchema>;
 
 interface Habit {
   id: string;
@@ -51,17 +36,8 @@ interface Habit {
   checkIns: Array<{ date: string; completed: boolean }>;
 }
 
-const frequencies = [
-  { value: 'DAILY', label: 'Daily' },
-  { value: 'WEEKLY', label: 'Weekly' },
-  { value: 'WEEKDAYS', label: 'Weekdays' },
-  { value: 'WEEKENDS', label: 'Weekends' },
-];
-
 export default function HabitsPage() {
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
 
   const { data, isLoading } = useQuery<{ data: { habits: Habit[] } }>({
     queryKey: ['habits'],
@@ -69,31 +45,6 @@ export default function HabitsPage() {
       const response = await api.get('/habits');
       return response.data;
     },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: HabitForm) => api.post('/habits', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['habits'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Habit created successfully!');
-      setIsModalOpen(false);
-      reset();
-    },
-    onError: () => toast.error('Failed to create habit'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<HabitForm> }) =>
-      api.patch(`/habits/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['habits'] });
-      toast.success('Habit updated successfully!');
-      setIsModalOpen(false);
-      setEditingHabit(null);
-      reset();
-    },
-    onError: () => toast.error('Failed to update habit'),
   });
 
   const deleteMutation = useMutation({
@@ -123,43 +74,6 @@ export default function HabitsPage() {
       toast.success('Check-in removed');
     },
   });
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<HabitForm>({
-    resolver: zodResolver(habitSchema),
-    defaultValues: {
-      frequency: 'DAILY',
-      targetCount: 1,
-    },
-  });
-
-  const onSubmit = (data: HabitForm) => {
-    if (editingHabit) {
-      updateMutation.mutate({ id: editingHabit.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const openEditModal = (habit: Habit) => {
-    setEditingHabit(habit);
-    setValue('name', habit.name);
-    setValue('description', habit.description || '');
-    setValue('frequency', habit.frequency);
-    setValue('targetCount', habit.targetCount);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingHabit(null);
-    reset();
-  };
 
   const isCheckedInToday = (habit: Habit): boolean => {
     if (!habit.checkIns || habit.checkIns.length === 0) return false;
@@ -244,16 +158,14 @@ export default function HabitsPage() {
                     onClick={() => setOpenDropdown(null)}
                   />
                   <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
-                    <button
-                      onClick={() => {
-                        openEditModal(habit);
-                        setOpenDropdown(null);
-                      }}
+                    <Link
+                      href={`/habits/${habit.id}/edit`}
+                      onClick={() => setOpenDropdown(null)}
                       className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                     >
                       <Edit2 className="w-4 h-4" />
                       Edit
-                    </button>
+                    </Link>
                     <button
                       onClick={() => {
                         if (confirm('Are you sure you want to delete this habit?')) {
@@ -353,13 +265,14 @@ export default function HabitsPage() {
                 Build consistency with daily habits. Small steps lead to big changes!
               </p>
             </div>
-            <Button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Habit
-            </Button>
+            <Link href="/habits/new">
+              <Button 
+                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Habit
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -425,10 +338,12 @@ export default function HabitsPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No habits yet</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6">Start building positive habits today!</p>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Habit
-            </Button>
+            <Link href="/habits/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Habit
+              </Button>
+            </Link>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -437,56 +352,6 @@ export default function HabitsPage() {
             ))}
           </div>
         )}
-
-        {/* Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          title={editingHabit ? 'Edit Habit' : 'Create Habit'}
-          icon={<Repeat className="w-5 h-5" />}
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              label="Habit Name"
-              placeholder="e.g., Morning Workout"
-              error={errors.name?.message}
-              {...register('name')}
-            />
-
-            <Input
-              label="Description (optional)"
-              placeholder="e.g., 30 minutes of exercise"
-              {...register('description')}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Frequency"
-                options={frequencies}
-                {...register('frequency')}
-              />
-              <Input
-                label="Target Count"
-                type="number"
-                min="1"
-                {...register('targetCount', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="secondary" onClick={closeModal} className="flex-1">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                isLoading={createMutation.isPending || updateMutation.isPending}
-              >
-                {editingHabit ? 'Update Habit' : 'Create Habit'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
       </div>
     </DashboardLayout>
   );

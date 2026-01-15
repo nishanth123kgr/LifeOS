@@ -2,22 +2,17 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatusBadge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/lib/utils';
 import api from '@/lib/api';
+import Link from 'next/link';
 import { 
   Plus, 
-  X, 
   Edit2, 
   Trash2, 
   RotateCcw, 
@@ -30,20 +25,6 @@ import {
   MoreVertical,
   Flame
 } from 'lucide-react';
-
-const goalSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  metricType: z.string(),
-  startValue: z.number(),
-  currentValue: z.number(),
-  targetValue: z.number(),
-  unit: z.string().min(1, 'Unit is required'),
-  startDate: z.string(),
-  targetDate: z.string(),
-  notes: z.string().optional(),
-});
-
-type GoalForm = z.infer<typeof goalSchema>;
 
 interface FitnessGoal {
   id: string;
@@ -73,8 +54,7 @@ const metricTypes = [
 
 export default function FitnessGoalsPage() {
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<FitnessGoal | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<{ data: { goals: FitnessGoal[] } }>({
     queryKey: ['fitness-goals'],
@@ -82,32 +62,6 @@ export default function FitnessGoalsPage() {
       const response = await api.get('/fitness-goals');
       return response.data;
     },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: GoalForm) => api.post('/fitness-goals', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fitness-goals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Goal created successfully!');
-      setIsModalOpen(false);
-      reset();
-    },
-    onError: () => toast.error('Failed to create goal'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<GoalForm> }) =>
-      api.patch(`/fitness-goals/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fitness-goals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Goal updated successfully!');
-      setIsModalOpen(false);
-      setEditingGoal(null);
-      reset();
-    },
-    onError: () => toast.error('Failed to update goal'),
   });
 
   const deleteMutation = useMutation({
@@ -128,49 +82,12 @@ export default function FitnessGoalsPage() {
     },
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<GoalForm>({
-    resolver: zodResolver(goalSchema),
-    defaultValues: {
-      metricType: 'WEIGHT',
-      unit: 'kg',
-      startDate: new Date().toISOString().split('T')[0],
-      targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    },
-  });
-
-  const onSubmit = (data: GoalForm) => {
-    if (editingGoal) {
-      updateMutation.mutate({ id: editingGoal.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const openEditModal = (goal: FitnessGoal) => {
-    setEditingGoal(goal);
-    setValue('name', goal.name);
-    setValue('metricType', goal.metricType);
-    setValue('startValue', goal.startValue);
-    setValue('currentValue', goal.currentValue);
-    setValue('targetValue', goal.targetValue);
-    setValue('unit', goal.unit);
-    setValue('startDate', goal.startDate.split('T')[0]);
-    setValue('targetDate', goal.targetDate.split('T')[0]);
-    setValue('notes', goal.notes || '');
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingGoal(null);
-    reset();
-  };
+  const goals = data?.data?.goals || [];
+  const activeGoals = goals.filter(g => !g.isAchieved);
+  const achievedGoals = goals.filter(g => g.isAchieved);
+  const avgProgress = goals.length > 0 
+    ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) 
+    : 0;
 
   const goals = data?.data?.goals || [];
   const activeGoals = goals.filter(g => !g.isAchieved);
@@ -256,16 +173,14 @@ export default function FitnessGoalsPage() {
                   onClick={() => setOpenDropdown(null)}
                 />
                 <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
-                  <button
-                    onClick={() => {
-                      openEditModal(goal);
-                      setOpenDropdown(null);
-                    }}
+                  <Link
+                    href={`/goals/fitness/${goal.id}/edit`}
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    onClick={() => setOpenDropdown(null)}
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit Goal
-                  </button>
+                  </Link>
                   <button
                     onClick={() => {
                       resetMutation.mutate(goal.id);
@@ -355,13 +270,12 @@ export default function FitnessGoalsPage() {
                 Track your health and fitness progress. Stay consistent and crush your goals!
               </p>
             </div>
-            <Button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Goal
-            </Button>
+            <Link href="/goals/fitness/new">
+              <Button className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Goal
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -424,10 +338,12 @@ export default function FitnessGoalsPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No fitness goals yet</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6">Start tracking your fitness journey today!</p>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Goal
-            </Button>
+            <Link href="/goals/fitness/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Goal
+              </Button>
+            </Link>
           </Card>
         ) : (
           <div className="space-y-6">
@@ -466,88 +382,6 @@ export default function FitnessGoalsPage() {
             )}
           </div>
         )}
-
-        {/* Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          title={editingGoal ? 'Edit Goal' : 'Create Fitness Goal'}
-          size="lg"
-          icon={<Dumbbell className="w-5 h-5" />}
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              label="Goal Name"
-              placeholder="e.g., Lose Weight"
-              error={errors.name?.message}
-              {...register('name')}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Metric Type"
-                options={metricTypes}
-                {...register('metricType')}
-              />
-              <Input
-                label="Unit"
-                placeholder="kg, %, steps"
-                error={errors.unit?.message}
-                {...register('unit')}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <Input
-                label="Start Value"
-                type="number"
-                step="0.1"
-                error={errors.startValue?.message}
-                {...register('startValue', { valueAsNumber: true })}
-              />
-              <Input
-                label="Current Value"
-                type="number"
-                step="0.1"
-                error={errors.currentValue?.message}
-                {...register('currentValue', { valueAsNumber: true })}
-              />
-              <Input
-                label="Target Value"
-                type="number"
-                step="0.1"
-                error={errors.targetValue?.message}
-                {...register('targetValue', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Start Date"
-                type="date"
-                {...register('startDate')}
-              />
-              <Input
-                label="Target Date"
-                type="date"
-                {...register('targetDate')}
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="secondary" onClick={closeModal} className="flex-1">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                isLoading={createMutation.isPending || updateMutation.isPending}
-              >
-                {editingGoal ? 'Update Goal' : 'Create Goal'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
       </div>
     </DashboardLayout>
   );

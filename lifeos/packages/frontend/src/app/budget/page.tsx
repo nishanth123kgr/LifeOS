@@ -2,23 +2,19 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
+import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Modal } from '@/components/ui/Modal';
 import { DonutChart } from '@/components/charts/Charts';
 import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
+import Link from 'next/link';
 import { 
   Plus, 
-  X, 
   Wallet, 
   TrendingUp, 
   TrendingDown, 
@@ -31,14 +27,6 @@ import {
   BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const budgetSchema = z.object({
-  month: z.number().min(1).max(12),
-  year: z.number().min(2020).max(2100),
-  income: z.number().min(0),
-});
-
-type BudgetForm = z.infer<typeof budgetSchema>;
 
 interface BudgetItem {
   id: string;
@@ -95,9 +83,7 @@ export default function BudgetPage() {
   const { user } = useAuthStore();
   const currency = user?.currency || 'INR';
 
-  const currentDate = new Date();
   const [selectedBudget, setSelectedBudget] = useState<{ month: number; year: number } | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItems, setEditingItems] = useState<Record<string, { planned: number; actual: number }>>({});
 
   // Fetch all budgets
@@ -119,26 +105,6 @@ export default function BudgetPage() {
     enabled: !!selectedBudget,
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: BudgetForm) => api.post('/budgets', {
-      ...data,
-      items: budgetCategories.map(c => ({
-        category: c.value,
-        planned: 0,
-        actual: 0,
-      })),
-    }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      queryClient.invalidateQueries({ queryKey: ['budget'] });
-      toast.success('Budget created successfully!');
-      setIsModalOpen(false);
-      setSelectedBudget({ month: variables.month, year: variables.year });
-      reset();
-    },
-    onError: () => toast.error('Failed to create budget'),
-  });
-
   const updateMutation = useMutation({
     mutationFn: ({ items, income }: { items: any[]; income?: number }) =>
       api.patch(`/budgets/${selectedBudget?.year}/${selectedBudget?.month}`, { items, income }),
@@ -149,25 +115,6 @@ export default function BudgetPage() {
     },
     onError: () => toast.error('Failed to update budget'),
   });
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<BudgetForm>({
-    resolver: zodResolver(budgetSchema),
-    defaultValues: {
-      month: currentDate.getMonth() + 1,
-      year: currentDate.getFullYear(),
-      income: 0,
-    },
-  });
-
-  const onSubmit = (data: BudgetForm) => {
-    createMutation.mutate(data);
-  };
 
   const handleItemUpdate = (category: string, field: 'planned' | 'actual', value: number) => {
     setEditingItems(prev => ({
@@ -431,13 +378,12 @@ export default function BudgetPage() {
                   Track your income and expenses. Create and manage budgets for each month.
                 </p>
               </div>
-              <Button 
-                onClick={() => setIsModalOpen(true)}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Budget
-              </Button>
+              <Link href="/budget/new">
+                <Button className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Budget
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -495,10 +441,12 @@ export default function BudgetPage() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No budgets yet</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">Create your first monthly budget to start tracking</p>
-              <Button onClick={() => setIsModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Budget
-              </Button>
+              <Link href="/budget/new">
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Budget
+                </Button>
+              </Link>
             </Card>
           ) : (
             <div className="space-y-6">
@@ -612,46 +560,6 @@ export default function BudgetPage() {
           )}
         </div>
       )}
-
-      {/* Create Budget Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Create Budget"
-        icon={<Wallet className="w-5 h-5" />}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Month"
-              options={months}
-              {...register('month', { valueAsNumber: true })}
-            />
-            <Input
-              label="Year"
-              type="number"
-              {...register('year', { valueAsNumber: true })}
-            />
-          </div>
-
-          <Input
-            label="Monthly Income"
-            type="number"
-            placeholder="50000"
-            error={errors.income?.message}
-            {...register('income', { valueAsNumber: true })}
-          />
-
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" isLoading={createMutation.isPending}>
-              Create Budget
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </DashboardLayout>
   );
 }

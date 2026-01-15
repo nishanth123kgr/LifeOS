@@ -2,23 +2,18 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatusBadge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
+import Link from 'next/link';
 import { 
   Plus, 
-  X, 
   Edit2, 
   Trash2, 
   Pause, 
@@ -31,19 +26,6 @@ import {
   ChevronRight,
   MoreVertical
 } from 'lucide-react';
-
-const goalSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  type: z.string(),
-  targetAmount: z.number().positive('Target amount must be positive'),
-  currentAmount: z.number().min(0).optional(),
-  monthlyContribution: z.number().min(0).optional(),
-  startDate: z.string(),
-  targetDate: z.string(),
-  notes: z.string().optional(),
-});
-
-type GoalForm = z.infer<typeof goalSchema>;
 
 interface FinancialGoal {
   id: string;
@@ -77,8 +59,7 @@ export default function FinancialGoalsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const currency = user?.currency || 'INR';
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<FinancialGoal | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<{ data: { goals: FinancialGoal[] } }>({
     queryKey: ['financial-goals'],
@@ -86,32 +67,6 @@ export default function FinancialGoalsPage() {
       const response = await api.get('/financial-goals');
       return response.data;
     },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: GoalForm) => api.post('/financial-goals', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Goal created successfully!');
-      setIsModalOpen(false);
-      reset();
-    },
-    onError: () => toast.error('Failed to create goal'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<GoalForm> }) =>
-      api.patch(`/financial-goals/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      toast.success('Goal updated successfully!');
-      setIsModalOpen(false);
-      setEditingGoal(null);
-      reset();
-    },
-    onError: () => toast.error('Failed to update goal'),
   });
 
   const deleteMutation = useMutation({
@@ -131,48 +86,6 @@ export default function FinancialGoalsPage() {
       toast.success('Goal status updated!');
     },
   });
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<GoalForm>({
-    resolver: zodResolver(goalSchema),
-    defaultValues: {
-      type: 'CUSTOM',
-      startDate: new Date().toISOString().split('T')[0],
-      targetDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    },
-  });
-
-  const onSubmit = (data: GoalForm) => {
-    if (editingGoal) {
-      updateMutation.mutate({ id: editingGoal.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const openEditModal = (goal: FinancialGoal) => {
-    setEditingGoal(goal);
-    setValue('name', goal.name);
-    setValue('type', goal.type);
-    setValue('targetAmount', goal.targetAmount);
-    setValue('currentAmount', goal.currentAmount);
-    setValue('monthlyContribution', goal.monthlyContribution);
-    setValue('startDate', goal.startDate.split('T')[0]);
-    setValue('targetDate', goal.targetDate.split('T')[0]);
-    setValue('notes', goal.notes || '');
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingGoal(null);
-    reset();
-  };
 
   const goals = data?.data?.goals || [];
   const activeGoals = goals.filter(g => !g.isPaused && !g.isArchived);
@@ -197,13 +110,12 @@ export default function FinancialGoalsPage() {
               </p>
             </div>
             
-            <Button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-white text-emerald-600 hover:bg-emerald-50 shadow-lg"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Goal
-            </Button>
+            <Link href="/goals/financial/new">
+              <Button className="bg-white text-emerald-600 hover:bg-emerald-50 shadow-lg">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Goal
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -285,10 +197,12 @@ export default function FinancialGoalsPage() {
             <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
               Start your journey to financial freedom by creating your first savings goal.
             </p>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Goal
-            </Button>
+            <Link href="/goals/financial/new">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Goal
+              </Button>
+            </Link>
           </Card>
         ) : (
           <div className="space-y-6">
@@ -302,7 +216,6 @@ export default function FinancialGoalsPage() {
                       key={goal.id} 
                       goal={goal} 
                       currency={currency}
-                      onEdit={() => openEditModal(goal)}
                       onPause={() => pauseMutation.mutate(goal.id)}
                       onDelete={() => {
                         if (confirm('Are you sure you want to delete this goal?')) {
@@ -325,7 +238,6 @@ export default function FinancialGoalsPage() {
                       key={goal.id} 
                       goal={goal} 
                       currency={currency}
-                      onEdit={() => openEditModal(goal)}
                       onPause={() => pauseMutation.mutate(goal.id)}
                       onDelete={() => {
                         if (confirm('Are you sure you want to delete this goal?')) {
@@ -339,79 +251,6 @@ export default function FinancialGoalsPage() {
             )}
           </div>
         )}
-
-        {/* Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          title={editingGoal ? 'Edit Goal' : 'Create Financial Goal'}
-          size="lg"
-          icon={<Target className="w-5 h-5" />}
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              label="Goal Name"
-              placeholder="e.g., Emergency Fund"
-              error={errors.name?.message}
-              {...register('name')}
-            />
-
-            <Select
-              label="Goal Type"
-              options={goalTypes}
-              {...register('type')}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Target Amount"
-                type="number"
-                placeholder="100000"
-                error={errors.targetAmount?.message}
-                {...register('targetAmount', { valueAsNumber: true })}
-              />
-              <Input
-                label="Current Amount"
-                type="number"
-                placeholder="0"
-                {...register('currentAmount', { valueAsNumber: true })}
-              />
-            </div>
-
-            <Input
-              label="Monthly Contribution"
-              type="number"
-              placeholder="5000"
-              {...register('monthlyContribution', { valueAsNumber: true })}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Start Date"
-                type="date"
-                {...register('startDate')}
-              />
-              <Input
-                label="Target Date"
-                type="date"
-                {...register('targetDate')}
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="secondary" onClick={closeModal} className="flex-1">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                isLoading={createMutation.isPending || updateMutation.isPending}
-              >
-                {editingGoal ? 'Update Goal' : 'Create Goal'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
       </div>
     </DashboardLayout>
   );
@@ -421,12 +260,11 @@ export default function FinancialGoalsPage() {
 interface GoalCardProps {
   goal: FinancialGoal;
   currency: string;
-  onEdit: () => void;
   onPause: () => void;
   onDelete: () => void;
 }
 
-function GoalCard({ goal, currency, onEdit, onPause, onDelete }: GoalCardProps) {
+function GoalCard({ goal, currency, onPause, onDelete }: GoalCardProps) {
   const [showActions, setShowActions] = useState(false);
   
   const getStatusColor = (status: string) => {
@@ -478,12 +316,13 @@ function GoalCard({ goal, currency, onEdit, onPause, onDelete }: GoalCardProps) 
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />
                 <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[120px]">
-                  <button 
-                    onClick={() => { onEdit(); setShowActions(false); }}
+                  <Link 
+                    href={`/goals/financial/${goal.id}/edit`}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={() => setShowActions(false)}
                   >
                     <Edit2 className="w-4 h-4" /> Edit
-                  </button>
+                  </Link>
                   <button 
                     onClick={() => { onPause(); setShowActions(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
