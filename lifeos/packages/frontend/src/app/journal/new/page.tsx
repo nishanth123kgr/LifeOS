@@ -34,11 +34,11 @@ const moodLevels = [
 ];
 
 const energyLevels = [
-  { value: 1, label: 'Exhausted', color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-500/10', border: 'border-red-200 dark:border-red-500/30', activeBorder: 'border-red-500', text: 'text-red-600 dark:text-red-400' },
-  { value: 2, label: 'Tired', color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10', border: 'border-orange-200 dark:border-orange-500/30', activeBorder: 'border-orange-500', text: 'text-orange-600 dark:text-orange-400' },
-  { value: 3, label: 'Moderate', color: 'bg-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-500/10', border: 'border-yellow-200 dark:border-yellow-500/30', activeBorder: 'border-yellow-500', text: 'text-yellow-600 dark:text-yellow-400' },
-  { value: 4, label: 'Energetic', color: 'bg-lime-500', bg: 'bg-lime-50 dark:bg-lime-500/10', border: 'border-lime-200 dark:border-lime-500/30', activeBorder: 'border-lime-500', text: 'text-lime-600 dark:text-lime-400' },
-  { value: 5, label: 'Supercharged', color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-500/10', border: 'border-green-200 dark:border-green-500/30', activeBorder: 'border-green-500', text: 'text-green-600 dark:text-green-400' },
+  { value: 1, label: 'Exhausted', description: 'Running on empty', color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-500/10', border: 'border-red-200 dark:border-red-500/30', activeBorder: 'border-red-500', text: 'text-red-600 dark:text-red-400' },
+  { value: 2, label: 'Tired', description: 'Need some rest', color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10', border: 'border-orange-200 dark:border-orange-500/30', activeBorder: 'border-orange-500', text: 'text-orange-600 dark:text-orange-400' },
+  { value: 3, label: 'Moderate', description: 'Doing okay', color: 'bg-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-500/10', border: 'border-yellow-200 dark:border-yellow-500/30', activeBorder: 'border-yellow-500', text: 'text-yellow-600 dark:text-yellow-400' },
+  { value: 4, label: 'Energetic', description: 'Feeling alive', color: 'bg-lime-500', bg: 'bg-lime-50 dark:bg-lime-500/10', border: 'border-lime-200 dark:border-lime-500/30', activeBorder: 'border-lime-500', text: 'text-lime-600 dark:text-lime-400' },
+  { value: 5, label: 'Supercharged', description: 'Ready for anything', color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-500/10', border: 'border-green-200 dark:border-green-500/30', activeBorder: 'border-green-500', text: 'text-green-600 dark:text-green-400' },
 ];
 
 const writingPrompts = [
@@ -289,7 +289,7 @@ export default function NewJournalEntryPage() {
               value={format(selectedDate, 'yyyy-MM-dd')}
               onChange={(e) => setSelectedDate(new Date(e.target.value))}
               max={format(new Date(), 'yyyy-MM-dd')}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent [color-scheme:light] dark:[color-scheme:dark]"
             />
           </Card>
 
@@ -301,7 +301,7 @@ export default function NewJournalEntryPage() {
                 <Heart className="w-5 h-5 text-pink-500" />
                 How are you feeling?
               </h3>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="space-y-2">
                 {moodLevels.map((mood) => {
                   const isSelected = formData.mood === mood.value;
                   return (
@@ -310,33 +310,35 @@ export default function NewJournalEntryPage() {
                       type="button"
                       onClick={() => setFormData({ ...formData, mood: mood.value })}
                       className={cn(
-                        'flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200',
+                        'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200',
                         isSelected
-                          ? `${mood.bg} ${mood.activeBorder} shadow-md scale-105`
-                          : `bg-white dark:bg-gray-800 ${mood.border} hover:${mood.bg} hover:scale-102`
+                          ? `${mood.bg} ${mood.activeBorder} shadow-md`
+                          : `bg-white dark:bg-gray-800 ${mood.border} hover:${mood.bg}`
                       )}
                     >
                       <div className={cn(
-                        'w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-transform',
-                        isSelected ? mood.solid : 'bg-gray-200 dark:bg-gray-700',
-                        isSelected && 'scale-110'
+                        'w-10 h-10 rounded-full flex items-center justify-center transition-transform shrink-0',
+                        isSelected ? mood.solid : 'bg-gray-200 dark:bg-gray-700'
                       )}>
-                        <span className="text-white font-bold text-sm">{mood.value}</span>
+                        <span className="text-white font-bold">{mood.value}</span>
                       </div>
-                      <span className={cn(
-                        'text-xs font-medium text-center',
-                        isSelected ? mood.text : 'text-gray-500 dark:text-gray-400'
-                      )}>
-                        {mood.label}
-                      </span>
+                      <div className="flex-1 text-left">
+                        <span className={cn(
+                          'font-medium block',
+                          isSelected ? mood.text : 'text-gray-700 dark:text-gray-300'
+                        )}>
+                          {mood.label}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {mood.description}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <div className={cn('w-2 h-2 rounded-full shrink-0', mood.solid)} />
+                      )}
                     </button>
                   );
                 })}
-              </div>
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {getMoodLevel(formData.mood).description}
-                </p>
               </div>
             </Card>
 
@@ -346,7 +348,7 @@ export default function NewJournalEntryPage() {
                 <Zap className="w-5 h-5 text-yellow-500" />
                 Energy Level
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {energyLevels.map((level) => {
                   const isSelected = formData.energy === level.value;
                   return (
@@ -361,26 +363,36 @@ export default function NewJournalEntryPage() {
                           : `bg-white dark:bg-gray-800 ${level.border} hover:${level.bg}`
                       )}
                     >
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((bar) => (
-                          <div
-                            key={bar}
-                            className={cn(
-                              'w-2 rounded-full transition-all',
-                              bar <= level.value ? level.color : 'bg-gray-200 dark:bg-gray-700'
-                            )}
-                            style={{ height: `${8 + bar * 4}px` }}
-                          />
-                        ))}
-                      </div>
-                      <span className={cn(
-                        'font-medium flex-1 text-left',
-                        isSelected ? level.text : 'text-gray-700 dark:text-gray-300'
+                      <div className={cn(
+                        'w-10 h-10 rounded-full flex items-center justify-center shrink-0',
+                        isSelected ? level.color : 'bg-gray-200 dark:bg-gray-700'
                       )}>
-                        {level.label}
-                      </span>
+                        <div className="flex gap-0.5 items-end">
+                          {[1, 2, 3, 4, 5].map((bar) => (
+                            <div
+                              key={bar}
+                              className={cn(
+                                'w-1 rounded-full',
+                                bar <= level.value ? 'bg-white' : 'bg-white/40'
+                              )}
+                              style={{ height: `${4 + bar * 2}px` }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <span className={cn(
+                          'font-medium block',
+                          isSelected ? level.text : 'text-gray-700 dark:text-gray-300'
+                        )}>
+                          {level.label}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {level.description}
+                        </span>
+                      </div>
                       {isSelected && (
-                        <div className={cn('w-2 h-2 rounded-full', level.color)} />
+                        <div className={cn('w-2 h-2 rounded-full shrink-0', level.color)} />
                       )}
                     </button>
                   );

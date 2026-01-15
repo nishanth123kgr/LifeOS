@@ -31,10 +31,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      {/* Subtle background pattern */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary-100/20 via-transparent to-transparent dark:from-primary-900/10 pointer-events-none" />
+      
       <Sidebar />
-      <main className="pl-64">
-        <div className="p-8">
+      <main className="lg:pl-[284px] min-h-screen relative">
+        <div className="pt-16 lg:pt-0 p-4 sm:p-6 lg:py-6 lg:pr-6 lg:pl-3">
           {children}
         </div>
       </main>

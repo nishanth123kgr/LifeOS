@@ -39,8 +39,13 @@ export const config = {
     return process.env.NODE_ENV || 'development';
   },
 
-  get frontendUrl(): string {
-    return process.env.FRONTEND_URL || 'http://localhost:3000';
+  get frontendUrl(): string | string[] {
+    const urls = process.env.FRONTEND_URL || 'http://localhost:3000';
+    // Support comma-separated URLs for multiple origins
+    if (urls.includes(',')) {
+      return urls.split(',').map(url => url.trim());
+    }
+    return urls;
   },
 
   get isProduction(): boolean {
