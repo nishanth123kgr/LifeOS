@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -80,7 +80,7 @@ interface JournalEntry {
   tags: string[];
 }
 
-export default function NewJournalEntryPage() {
+function JournalEntryForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -572,5 +572,19 @@ export default function NewJournalEntryPage() {
         </form>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function NewJournalEntryPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+        </div>
+      </DashboardLayout>
+    }>
+      <JournalEntryForm />
+    </Suspense>
   );
 }
