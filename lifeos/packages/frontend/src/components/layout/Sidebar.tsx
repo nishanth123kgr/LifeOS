@@ -127,9 +127,7 @@ export function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-md shadow-primary-500/20 group-hover:shadow-primary-500/40 transition-shadow">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
+          <Image src="/logo.png" alt="LifeOS" width={36} height={36} className="rounded-lg" />
           <span className="text-lg font-bold text-gray-900 dark:text-white">LifeOS</span>
         </Link>
         <button
@@ -250,9 +248,7 @@ export function Sidebar() {
           <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm">
-            <Zap className="w-3.5 h-3.5 text-white" />
-          </div>
+          <Image src="/logo.png" alt="LifeOS" width={32} height={32} className="rounded-lg" />
           <span className="font-semibold text-gray-900 dark:text-white">LifeOS</span>
         </div>
       </div>
