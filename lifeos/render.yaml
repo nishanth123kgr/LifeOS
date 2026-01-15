@@ -18,4 +18,4 @@ services:
       - key: FRONTEND_URL
         sync: false
     healthCheckPath: /health
-    rootDir: packages/backend
+    rootDir: lifeos/packages/backend
