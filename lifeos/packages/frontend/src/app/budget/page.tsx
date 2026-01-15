@@ -15,7 +15,20 @@ import { DonutChart } from '@/components/charts/Charts';
 import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
-import { Plus, X, Edit2, Wallet, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { 
+  Plus, 
+  X, 
+  Wallet, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle,
+  Calendar,
+  ChevronRight,
+  ArrowLeft,
+  PiggyBank,
+  Receipt,
+  BarChart3
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const budgetSchema = z.object({
@@ -74,23 +87,35 @@ const months = [
   { value: '12', label: 'December' },
 ];
 
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 export default function BudgetPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const currency = user?.currency || 'INR';
 
   const currentDate = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedBudget, setSelectedBudget] = useState<{ month: number; year: number } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItems, setEditingItems] = useState<Record<string, { planned: number; actual: number }>>({});
 
-  const { data, isLoading } = useQuery<{ data: { budget: Budget } }>({
-    queryKey: ['budget', selectedYear, selectedMonth],
+  // Fetch all budgets
+  const { data: allBudgetsData, isLoading: isLoadingAll } = useQuery<{ data: { budgets: Budget[] } }>({
+    queryKey: ['budgets'],
     queryFn: async () => {
-      const response = await api.get(`/budgets/${selectedYear}/${selectedMonth}`);
+      const response = await api.get('/budgets');
       return response.data;
     },
+  });
+
+  // Fetch selected budget details
+  const { data: budgetData, isLoading: isLoadingBudget } = useQuery<{ data: { budget: Budget } }>({
+    queryKey: ['budget', selectedBudget?.year, selectedBudget?.month],
+    queryFn: async () => {
+      const response = await api.get(`/budgets/${selectedBudget?.year}/${selectedBudget?.month}`);
+      return response.data;
+    },
+    enabled: !!selectedBudget,
   });
 
   const createMutation = useMutation({
@@ -102,10 +127,12 @@ export default function BudgetPage() {
         actual: 0,
       })),
     }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget'] });
       toast.success('Budget created successfully!');
       setIsModalOpen(false);
+      setSelectedBudget({ month: variables.month, year: variables.year });
       reset();
     },
     onError: () => toast.error('Failed to create budget'),
@@ -113,9 +140,10 @@ export default function BudgetPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ items, income }: { items: any[]; income?: number }) =>
-      api.patch(`/budgets/${selectedYear}/${selectedMonth}`, { items, income }),
+      api.patch(`/budgets/${selectedBudget?.year}/${selectedBudget?.month}`, { items, income }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
       toast.success('Budget updated!');
     },
     onError: () => toast.error('Failed to update budget'),
@@ -125,6 +153,7 @@ export default function BudgetPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<BudgetForm>({
     resolver: zodResolver(budgetSchema),
@@ -139,8 +168,6 @@ export default function BudgetPage() {
     createMutation.mutate(data);
   };
 
-  const budget = data?.data?.budget;
-
   const handleItemUpdate = (category: string, field: 'planned' | 'actual', value: number) => {
     setEditingItems(prev => ({
       ...prev,
@@ -152,6 +179,7 @@ export default function BudgetPage() {
   };
 
   const saveItemChanges = () => {
+    const budget = budgetData?.data?.budget;
     if (!budget) return;
 
     const updatedItems = budget.items.map(item => ({
@@ -164,235 +192,471 @@ export default function BudgetPage() {
     setEditingItems({});
   };
 
-  // Prepare chart data
+  const allBudgets = allBudgetsData?.data?.budgets || [];
+  const budget = budgetData?.data?.budget;
+
+  // Group budgets by year
+  const budgetsByYear = allBudgets.reduce((acc, b) => {
+    if (!acc[b.year]) acc[b.year] = [];
+    acc[b.year].push(b);
+    return acc;
+  }, {} as Record<number, Budget[]>);
+
+  // Sort years descending
+  const sortedYears = Object.keys(budgetsByYear).map(Number).sort((a, b) => b - a);
+
+  // Calculate totals
+  const totalIncome = allBudgets.reduce((sum, b) => sum + b.income, 0);
+  const totalSpent = allBudgets.reduce((sum, b) => sum + b.totalActual, 0);
+  const totalSurplus = allBudgets.reduce((sum, b) => sum + b.surplus, 0);
+
+  // Chart data for selected budget
   const chartData = budget?.items
     .filter(item => item.actual > 0)
     .map(item => ({
-      name: budgetCategories.find(c => c.value === item.category)?.label.split(' ').slice(1).join(' ') || item.category,
+      name: budgetCategories.find(c => c.value === item.category)?.label || item.category,
       value: item.actual,
     })) || [];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Monthly Budget</h1>
-            <p className="text-gray-600 dark:text-gray-400">Track your income and expenses</p>
-          </div>
+      {selectedBudget ? (
+        /* Budget Detail View */
+        <div className="space-y-6">
+          {/* Header */}
           <div className="flex items-center gap-4">
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="input w-32"
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setSelectedBudget(null);
+                setEditingItems({});
+              }}
+              className="p-2"
             >
-              {months.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="input w-24"
-            >
-              {[2024, 2025, 2026, 2027].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          </div>
-        ) : !budget ? (
-          <Card className="text-center py-12">
-            <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">
-              No budget for {months[selectedMonth - 1].label} {selectedYear}
-            </p>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Budget
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-          </Card>
-        ) : (
-          <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {monthNames[selectedBudget.month - 1]} {selectedBudget.year}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">Budget Details</p>
+            </div>
+          </div>
+
+          {isLoadingBudget ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : !budget ? (
+            <Card className="text-center py-12">
+              <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 mb-4">Budget not found</p>
+              <Button onClick={() => setSelectedBudget(null)}>
+                Go Back
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-bl-full" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Income</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(budget.income, currency)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Income</p>
-                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(budget.income, currency)}</p>
+                </Card>
+
+                <Card className="relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-bl-full" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                      <TrendingDown className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Planned</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(budget.totalPlanned, currency)}</p>
+                    </div>
                   </div>
-                </div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-warning-100 dark:bg-warning-900/30 rounded-lg flex items-center justify-center">
-                    <TrendingDown className="w-5 h-5 text-warning-600 dark:text-warning-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Planned</p>
-                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(budget.totalPlanned, currency)}</p>
-                  </div>
-                </div>
-              </Card>
-              <Card>
-                <div className="flex items-center gap-3">
+                </Card>
+
+                <Card className="relative overflow-hidden">
                   <div className={cn(
-                    'w-10 h-10 rounded-lg flex items-center justify-center',
-                    budget.isOverBudget ? 'bg-danger-100 dark:bg-danger-900/30' : 'bg-success-100 dark:bg-success-900/30'
-                  )}>
-                    <TrendingUp className={cn('w-5 h-5', budget.isOverBudget ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400')} />
+                    'absolute top-0 right-0 w-12 h-12 rounded-bl-full',
+                    budget.isOverBudget ? 'bg-red-100 dark:bg-red-900/20' : 'bg-green-100 dark:bg-green-900/20'
+                  )} />
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'w-10 h-10 rounded-lg flex items-center justify-center',
+                      budget.isOverBudget ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'
+                    )}>
+                      <TrendingUp className={cn('w-5 h-5', budget.isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400')} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Actual</p>
+                      <p className={cn('text-xl font-bold', budget.isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white')}>
+                        {formatCurrency(budget.totalActual, currency)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Actual</p>
-                    <p className={cn('text-xl font-bold', budget.isOverBudget ? 'text-danger-600 dark:text-danger-400' : 'text-gray-900 dark:text-white')}>
-                      {formatCurrency(budget.totalActual, currency)}
-                    </p>
+                </Card>
+
+                <Card className={cn(
+                  'relative overflow-hidden',
+                  budget.surplus < 0 && 'ring-2 ring-red-500/30'
+                )}>
+                  <div className={cn(
+                    'absolute top-0 right-0 w-12 h-12 rounded-bl-full',
+                    budget.surplus >= 0 ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'
+                  )} />
+                  <div className="flex items-center gap-3">
+                    {budget.surplus < 0 && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Surplus</p>
+                      <p className={cn('text-xl font-bold', budget.surplus >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500')}>
+                        {formatCurrency(Math.abs(budget.surplus), currency)}
+                        {budget.surplus < 0 && <span className="text-sm font-normal"> deficit</span>}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Card>
-              <Card className={budget.surplus < 0 ? 'border-danger-300 bg-danger-50 dark:bg-danger-900/20' : ''}>
-                <div className="flex items-center gap-3">
-                  {budget.surplus < 0 && <AlertTriangle className="w-5 h-5 text-danger-500" />}
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Surplus</p>
-                    <p className={cn('text-xl font-bold', budget.surplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-500')}>
-                      {formatCurrency(Math.abs(budget.surplus), currency)}
-                      {budget.surplus < 0 && ' deficit'}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Chart and Budget Items */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Spending Chart */}
-              <Card className="lg:col-span-1">
-                <CardHeader title="Spending Breakdown" />
-                {chartData.length > 0 ? (
-                  <DonutChart data={chartData} height={250} />
-                ) : (
-                  <div className="h-64 flex items-center justify-center text-gray-500">
-                    No spending data yet
-                  </div>
-                )}
-              </Card>
-
-              {/* Budget Items */}
-              <Card className="lg:col-span-2">
-                <CardHeader
-                  title="Budget Categories"
-                  action={
-                    Object.keys(editingItems).length > 0 && (
-                      <Button size="sm" onClick={saveItemChanges} isLoading={updateMutation.isPending}>
-                        Save Changes
-                      </Button>
-                    )
-                  }
-                />
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                  {budget.items.map((item) => {
-                    const category = budgetCategories.find(c => c.value === item.category);
-                    const percentage = item.planned > 0 ? (item.actual / item.planned) * 100 : 0;
-                    const isOver = percentage > 100;
-
-                    return (
-                      <div key={item.category} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-gray-900 dark:text-white">{category?.label || item.category}</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              className="w-24 text-right input py-1 text-sm"
-                              value={editingItems[item.category]?.actual ?? item.actual}
-                              onChange={(e) => handleItemUpdate(item.category, 'actual', parseFloat(e.target.value) || 0)}
-                              placeholder="Actual"
-                            />
-                            <span className="text-gray-400">/</span>
-                            <input
-                              type="number"
-                              className="w-24 text-right input py-1 text-sm"
-                              value={editingItems[item.category]?.planned ?? item.planned}
-                              onChange={(e) => handleItemUpdate(item.category, 'planned', parseFloat(e.target.value) || 0)}
-                              placeholder="Planned"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
-                            <div
-                              className={cn('h-2 rounded-full transition-all', isOver ? 'bg-danger-500' : 'bg-primary-500')}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                          <span className={cn('text-xs font-medium', isOver ? 'text-danger-600 dark:text-danger-400' : 'text-gray-600 dark:text-gray-400')}>
-                            {percentage.toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            </div>
-          </>
-        )}
-
-        {/* Create Budget Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Budget</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                  <X className="w-6 h-6" />
-                </button>
+                </Card>
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Month"
-                    options={months}
-                    {...register('month', { valueAsNumber: true })}
-                  />
-                  <Input
-                    label="Year"
-                    type="number"
-                    {...register('year', { valueAsNumber: true })}
-                  />
-                </div>
+              {/* Chart and Budget Items */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Spending Chart */}
+                <Card className="lg:col-span-1">
+                  <CardHeader title="Spending Breakdown" />
+                  {chartData.length > 0 ? (
+                    <DonutChart data={chartData} height={250} />
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">
+                      No spending data yet
+                    </div>
+                  )}
+                </Card>
 
-                <Input
-                  label="Monthly Income"
-                  type="number"
-                  placeholder="50000"
-                  error={errors.income?.message}
-                  {...register('income', { valueAsNumber: true })}
-                />
+                {/* Budget Items */}
+                <Card className="lg:col-span-2">
+                  <CardHeader
+                    title="Budget Categories"
+                    action={
+                      Object.keys(editingItems).length > 0 && (
+                        <Button size="sm" onClick={saveItemChanges} isLoading={updateMutation.isPending}>
+                          Save Changes
+                        </Button>
+                      )
+                    }
+                  />
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {budget.items.map((item) => {
+                      const category = budgetCategories.find(c => c.value === item.category);
+                      const percentage = item.planned > 0 ? (item.actual / item.planned) * 100 : 0;
+                      const isOver = percentage > 100;
 
-                <div className="flex gap-3 pt-4">
-                  <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1" isLoading={createMutation.isPending}>
-                    Create Budget
-                  </Button>
+                      return (
+                        <div key={item.category} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{category?.label || item.category}</span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                className="w-24 text-right input py-1 text-sm"
+                                defaultValue={item.actual}
+                                onBlur={(e) => {
+                                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                                  handleItemUpdate(item.category, 'actual', parseFloat(val) || 0);
+                                }}
+                                placeholder="Actual"
+                              />
+                              <span className="text-gray-400">/</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                className="w-24 text-right input py-1 text-sm"
+                                defaultValue={item.planned}
+                                onBlur={(e) => {
+                                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                                  handleItemUpdate(item.category, 'planned', parseFloat(val) || 0);
+                                }}
+                                placeholder="Planned"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
+                              <div
+                                className={cn('h-2 rounded-full transition-all', isOver ? 'bg-red-500' : 'bg-blue-500')}
+                                style={{ width: `${Math.min(percentage, 100)}%` }}
+                              />
+                            </div>
+                            <span className={cn('text-xs font-medium w-12 text-right', isOver ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400')}>
+                              {percentage.toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        /* Budget List View */
+        <div className="space-y-8">
+          {/* Hero Header */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 p-8">
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            
+            <div className="relative flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <Wallet className="w-6 h-6 text-white" />
+                  </div>
+                  <h1 className="text-3xl font-bold text-white">Monthly Budgets</h1>
                 </div>
-              </form>
+                <p className="text-white/80 max-w-md">
+                  Track your income and expenses. Create and manage budgets for each month.
+                </p>
+              </div>
+              <Button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Budget
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-bl-full" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-2">
+                  <PiggyBank className="w-5 h-5 text-blue-500" />
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total Income</span>
+                </div>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalIncome, currency)}</p>
+              </div>
+            </Card>
+
+            <Card className="relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-bl-full" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-2">
+                  <Receipt className="w-5 h-5 text-orange-500" />
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total Spent</span>
+                </div>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(totalSpent, currency)}</p>
+              </div>
+            </Card>
+
+            <Card className="relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-bl-full" />
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-5 h-5 text-green-500" />
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total Surplus</span>
+                </div>
+                <p className={cn(
+                  'text-3xl font-bold',
+                  totalSurplus >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                )}>
+                  {formatCurrency(Math.abs(totalSurplus), currency)}
+                  {totalSurplus < 0 && <span className="text-lg font-normal"> deficit</span>}
+                </p>
+              </div>
+            </Card>
+          </div>
+
+          {/* Budget List */}
+          {isLoadingAll ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : allBudgets.length === 0 ? (
+            <Card className="text-center py-16">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-4">
+                <Wallet className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No budgets yet</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">Create your first monthly budget to start tracking</p>
+              <Button onClick={() => setIsModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Budget
+              </Button>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {sortedYears.map(year => (
+                <div key={year}>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-gray-400" />
+                    {year}
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {budgetsByYear[year]
+                      .sort((a, b) => b.month - a.month)
+                      .map(b => {
+                        const isCurrentMonth = b.month === currentDate.getMonth() + 1 && b.year === currentDate.getFullYear();
+                        const spendingPercentage = b.income > 0 ? (b.totalActual / b.income) * 100 : 0;
+                        
+                        return (
+                          <Card 
+                            key={b.id}
+                            className={cn(
+                              'cursor-pointer hover:shadow-lg transition-all duration-200 group relative overflow-hidden',
+                              isCurrentMonth && 'ring-2 ring-blue-500/50',
+                              b.isOverBudget && 'ring-2 ring-red-500/30'
+                            )}
+                            onClick={() => setSelectedBudget({ month: b.month, year: b.year })}
+                          >
+                            {/* Status indicator */}
+                            <div className={cn(
+                              'absolute top-0 left-0 right-0 h-1',
+                              b.surplus >= 0 ? 'bg-green-500' : 'bg-red-500'
+                            )} />
+
+                            <div className="pt-1">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    'p-2 rounded-lg',
+                                    isCurrentMonth 
+                                      ? 'bg-blue-100 dark:bg-blue-900/30' 
+                                      : 'bg-gray-100 dark:bg-gray-700'
+                                  )}>
+                                    <Calendar className={cn(
+                                      'w-4 h-4',
+                                      isCurrentMonth ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'
+                                    )} />
+                                  </div>
+                                  <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                                      {monthNames[b.month - 1]}
+                                    </h3>
+                                    {isCurrentMonth && (
+                                      <span className="text-xs text-blue-600 dark:text-blue-400">Current</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                              </div>
+
+                              <div className="space-y-2 mb-3">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-500 dark:text-gray-400">Income</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(b.income, currency)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-500 dark:text-gray-400">Spent</span>
+                                  <span className={cn(
+                                    'font-medium',
+                                    b.isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'
+                                  )}>
+                                    {formatCurrency(b.totalActual, currency)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="mb-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-400">Spending</span>
+                                  <span className={cn(
+                                    'font-medium',
+                                    spendingPercentage > 100 ? 'text-red-500' : 'text-gray-500'
+                                  )}>
+                                    {spendingPercentage.toFixed(0)}%
+                                  </span>
+                                </div>
+                                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className={cn(
+                                      'h-full rounded-full transition-all',
+                                      spendingPercentage > 100 ? 'bg-red-500' : 
+                                      spendingPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                                    )}
+                                    style={{ width: `${Math.min(spendingPercentage, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className={cn(
+                                'text-sm font-medium pt-2 border-t border-gray-100 dark:border-gray-700',
+                                b.surplus >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              )}>
+                                {b.surplus >= 0 ? '+' : ''}{formatCurrency(b.surplus, currency)} {b.surplus < 0 ? 'deficit' : 'surplus'}
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Budget Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Budget</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Month"
+                  options={months}
+                  {...register('month', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Year"
+                  type="number"
+                  {...register('year', { valueAsNumber: true })}
+                />
+              </div>
+
+              <Input
+                label="Monthly Income"
+                type="number"
+                placeholder="50000"
+                error={errors.income?.message}
+                {...register('income', { valueAsNumber: true })}
+              />
+
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" isLoading={createMutation.isPending}>
+                  Create Budget
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

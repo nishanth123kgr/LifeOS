@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: string = 'INR'): string {
+export function formatCurrency(amount: number | null | undefined, currency: string = 'INR'): string {
   const symbols: Record<string, string> = {
     INR: '₹',
     USD: '$',
@@ -14,7 +14,8 @@ export function formatCurrency(amount: number, currency: string = 'INR'): string
   };
   
   const symbol = symbols[currency] || currency;
-  return `${symbol}${amount.toLocaleString()}`;
+  const safeAmount = amount ?? 0;
+  return `${symbol}${safeAmount.toLocaleString()}`;
 }
 
 export function formatDate(date: string | Date): string {

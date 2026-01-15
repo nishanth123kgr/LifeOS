@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -15,7 +16,15 @@ import {
   CheckSquare, 
   Settings2,
   TrendingUp,
-  Flame
+  Flame,
+  ArrowRight,
+  Trophy,
+  Sparkles,
+  Calendar,
+  Wallet,
+  Activity,
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 
 interface DashboardData {
@@ -77,7 +86,13 @@ export default function DashboardPage() {
   const dashboard = data.data;
   const currency = dashboard.user?.currency || 'INR';
 
-  // Prepare chart data
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   const financialChartData = dashboard.financial.goals.map(g => ({
     name: g.name,
     value: g.progress,
@@ -88,83 +103,186 @@ export default function DashboardPage() {
     value: g.currentAmount,
   }));
 
+  const savingsProgress = dashboard.financial.totalTarget > 0 
+    ? Math.round((dashboard.financial.totalSaved / dashboard.financial.totalTarget) * 100)
+    : 0;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {dashboard.user?.name || 'User'}!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">Here's how your life goals are progressing</p>
-        </div>
-
-        {/* Life Score Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-1 flex flex-col items-center justify-center py-8">
-            <LifeScoreCircle score={dashboard.lifeScore} size="lg" />
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-              {dashboard.lifeScore >= 75 ? "You're crushing it!" :
-               dashboard.lifeScore >= 50 ? 'Good progress, keep going!' :
-               'Time to focus on your goals'}
-            </p>
-          </Card>
+        {/* Hero Header */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl p-6 lg:p-8 text-white">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
           
-          <Card className="lg:col-span-2">
-            <CardHeader title="Score Breakdown" subtitle="How each area contributes to your Life Score" />
-            <ScoreBreakdown scores={dashboard.scores} weights={dashboard.weights} />
-          </Card>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary-100 dark:bg-primary-500/20 rounded-xl flex items-center justify-center">
-                <Target className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-primary-100 text-sm mb-2">
+                <Calendar className="w-4 h-4" />
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Financial Goals</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboard.financial.totalGoals}</p>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2">
+                {getGreeting()}, {dashboard.user?.name?.split(' ')[0] || 'User'}!
+              </h1>
+              <p className="text-primary-100 max-w-md">
+                {dashboard.lifeScore >= 75 
+                  ? "You're absolutely crushing your goals! Keep up the amazing work." 
+                  : dashboard.lifeScore >= 50 
+                  ? "You're making solid progress. A few more steps and you'll be flying!"
+                  : "Every journey starts with a single step. Let's build momentum today!"}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <div className="relative">
+                  <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="text-3xl lg:text-4xl font-bold">{dashboard.lifeScore}</div>
+                  </div>
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-white text-primary-600 text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                    Life Score
+                  </div>
+                </div>
               </div>
             </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-success-100 dark:bg-success-500/20 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-success-600 dark:text-success-400" />
+          </div>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/goals/financial" className="group">
+            <Card className="h-full hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="p-2.5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl shadow-lg shadow-emerald-500/25">
+                  <Wallet className="w-5 h-5 text-white" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
               </div>
-              <div>
+              <div className="mt-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Saved</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mt-1">
                   {formatCurrency(dashboard.financial.totalSaved, currency)}
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
+                      style={{ width: `\${Math.min(savingsProgress, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-500">{savingsProgress}%</span>
+                </div>
               </div>
-            </div>
+            </Card>
+          </Link>
+
+          <Link href="/goals/financial" className="group">
+            <Card className="h-full hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="p-2.5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl shadow-lg shadow-blue-500/25">
+                  <Target className="w-5 h-5 text-white" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Financial Goals</p>
+                <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {dashboard.financial.totalGoals}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  {dashboard.financial.goalsByStatus.onTrack} on track
+                </p>
+              </div>
+            </Card>
+          </Link>
+
+          <Link href="/habits" className="group">
+            <Card className="h-full hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="p-2.5 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl shadow-lg shadow-orange-500/25">
+                  <Flame className="w-5 h-5 text-white" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Streaks</p>
+                <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {dashboard.habits.totalStreakDays} days
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  {dashboard.habits.totalHabits} active habits
+                </p>
+              </div>
+            </Card>
+          </Link>
+
+          <Link href="/achievements" className="group">
+            <Card className="h-full hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div className="p-2.5 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-xl shadow-lg shadow-amber-500/25">
+                  <Trophy className="w-5 h-5 text-white" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Achievements</p>
+                <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  View All
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Unlock rewards
+                </p>
+              </div>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Score Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader title="Life Score Breakdown" subtitle="See how each area contributes to your overall score" />
+            <ScoreBreakdown scores={dashboard.scores} weights={dashboard.weights} />
           </Card>
-          
-          <Card>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-warning-100 dark:bg-warning-500/20 rounded-xl flex items-center justify-center">
-                <Flame className="w-6 h-6 text-warning-600 dark:text-warning-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Active Habits</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboard.habits.totalHabits}</p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-danger-100 dark:bg-danger-500/20 rounded-xl flex items-center justify-center">
-                <CheckSquare className="w-6 h-6 text-danger-600 dark:text-danger-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Streak Days</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboard.habits.totalStreakDays}</p>
-              </div>
+
+          <Card className="flex flex-col">
+            <CardHeader title="Quick Actions" subtitle="Jump to frequently used features" />
+            <div className="flex-1 grid grid-cols-2 gap-3">
+              <Link
+                href="/goals/financial"
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors group"
+              >
+                <div className="p-2 bg-primary-100 dark:bg-primary-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                  <Plus className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-2">Add Goal</span>
+              </Link>
+              <Link
+                href="/habits"
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors group"
+              >
+                <div className="p-2 bg-orange-100 dark:bg-orange-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                  <CheckSquare className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-2">Check In</span>
+              </Link>
+              <Link
+                href="/journal"
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors group"
+              >
+                <div className="p-2 bg-purple-100 dark:bg-purple-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                  <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-2">Journal</span>
+              </Link>
+              <Link
+                href="/projections"
+                className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors group"
+              >
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-2">Projections</span>
+              </Link>
             </div>
           </Card>
         </div>
@@ -172,107 +290,194 @@ export default function DashboardPage() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <CardHeader title="Financial Goals Progress" subtitle="Progress towards each goal" />
+            <CardHeader title="Goal Progress" subtitle="Track each financial goal" />
             {financialChartData.length > 0 ? (
               <ProgressBarChart data={financialChartData} />
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                No financial goals yet
+              <div className="h-64 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                <Target className="w-12 h-12 mb-3 opacity-30" />
+                <p>No financial goals yet</p>
+                <Link href="/goals/financial" className="text-primary-500 text-sm mt-2 hover:underline">
+                  Create your first goal
+                </Link>
               </div>
             )}
           </Card>
           
           <Card>
-            <CardHeader title="Savings Allocation" subtitle="How your savings are distributed" />
+            <CardHeader title="Savings Distribution" subtitle="How your savings are allocated" />
             {savingsAllocationData.length > 0 && savingsAllocationData.some(d => d.value > 0) ? (
               <DonutChart data={savingsAllocationData} />
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                No savings data yet
+              <div className="h-64 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                <Wallet className="w-12 h-12 mb-3 opacity-30" />
+                <p>No savings data yet</p>
+                <Link href="/goals/financial" className="text-primary-500 text-sm mt-2 hover:underline">
+                  Start saving
+                </Link>
               </div>
             )}
           </Card>
         </div>
 
-        {/* Recent Activity */}
+        {/* Activity Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Habits */}
+          {/* Today's Habits */}
           <Card>
-            <CardHeader title="Today's Habits" subtitle="Check in to maintain your streaks" />
+            <div className="flex items-center justify-between mb-4">
+              <CardHeader title="Today's Habits" subtitle="Check in to maintain streaks" className="mb-0" />
+              <Link href="/habits" className="text-sm text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+                View all <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
             <div className="space-y-3">
               {dashboard.habits.habits.length > 0 ? (
-                dashboard.habits.habits.slice(0, 5).map((habit) => (
-                  <div key={habit.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                dashboard.habits.habits.slice(0, 4).map((habit) => (
+                  <div 
+                    key={habit.id} 
+                    className={`flex items-center justify-between p-3 rounded-xl transition-all \${
+                      habit.checkedInToday 
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20' 
+                        : 'bg-gray-50 dark:bg-gray-800/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+                    }`}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        habit.checkedInToday ? 'bg-success-100 dark:bg-success-500/20 text-success-600 dark:text-success-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center \${
+                        habit.checkedInToday 
+                          ? 'bg-emerald-500 text-white' 
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
                       }`}>
-                        <CheckSquare className="w-4 h-4" />
+                        <CheckSquare className="w-5 h-5" />
                       </div>
-                      <span className="font-medium text-gray-900 dark:text-white">{habit.name}</span>
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-white">{habit.name}</span>
+                        {habit.checkedInToday && (
+                          <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400">Done</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-warning-500" />
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{habit.currentStreak} day streak</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                      <Flame className="w-4 h-4 text-orange-500" />
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{habit.currentStreak}</span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-4">No habits created yet</p>
+                <div className="text-center py-8">
+                  <CheckSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">No habits yet</p>
+                  <Link href="/habits" className="text-primary-500 text-sm mt-2 inline-block hover:underline">
+                    Create your first habit
+                  </Link>
+                </div>
               )}
             </div>
           </Card>
 
-          {/* Systems */}
+          {/* Life Systems */}
           <Card>
-            <CardHeader title="Life Systems" subtitle="Your behavioral rules and adherence" />
+            <div className="flex items-center justify-between mb-4">
+              <CardHeader title="Life Systems" subtitle="Your behavioral rules" className="mb-0" />
+              <Link href="/systems" className="text-sm text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+                View all <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
             <div className="space-y-3">
               {dashboard.systems.systems.length > 0 ? (
-                dashboard.systems.systems.slice(0, 5).map((system) => (
-                  <div key={system.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                dashboard.systems.systems.slice(0, 4).map((system) => (
+                  <div key={system.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        system.isOnTrack ? 'bg-success-100 dark:bg-success-500/20 text-success-600 dark:text-success-400' : 'bg-warning-100 dark:bg-warning-500/20 text-warning-600 dark:text-warning-400'
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center \${
+                        system.isOnTrack 
+                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white' 
+                          : 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
                       }`}>
-                        <Settings2 className="w-4 h-4" />
+                        <Settings2 className="w-5 h-5" />
                       </div>
                       <span className="font-medium text-gray-900 dark:text-white">{system.name}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <ProgressBar value={system.adherence} size="sm" showLabel={false} className="w-20" />
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{system.adherence}%</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-24">
+                        <ProgressBar value={system.adherence} size="sm" showLabel={false} />
+                      </div>
+                      <span className={`text-sm font-bold \${
+                        system.adherence >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 
+                        system.adherence >= 50 ? 'text-amber-600 dark:text-amber-400' : 
+                        'text-red-600 dark:text-red-400'
+                      }`}>
+                        {system.adherence}%
+                      </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-4">No life systems created yet</p>
+                <div className="text-center py-8">
+                  <Settings2 className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">No systems yet</p>
+                  <Link href="/systems" className="text-primary-500 text-sm mt-2 inline-block hover:underline">
+                    Create your first system
+                  </Link>
+                </div>
               )}
             </div>
           </Card>
         </div>
 
-        {/* Financial Goals List */}
+        {/* Financial Goals Overview */}
         <Card>
-          <CardHeader title="Financial Goals" subtitle="Track your progress towards financial freedom" />
-          <div className="space-y-4">
-            {dashboard.financial.goals.length > 0 ? (
-              dashboard.financial.goals.map((goal) => (
-                <div key={goal.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900 dark:text-white">{goal.name}</h4>
+          <div className="flex items-center justify-between mb-4">
+            <CardHeader title="Financial Goals" subtitle="Your journey to financial freedom" className="mb-0" />
+            <Link href="/goals/financial" className="text-sm text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
+              Manage goals <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          {dashboard.financial.goals.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dashboard.financial.goals.slice(0, 6).map((goal) => (
+                <div 
+                  key={goal.id} 
+                  className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-primary-300 dark:hover:border-primary-700 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="font-semibold text-gray-900 dark:text-white line-clamp-1">{goal.name}</h4>
                     <StatusBadge status={goal.status} />
                   </div>
-                  <ProgressBar value={goal.progress} size="md" showLabel={false} />
-                  <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>{formatCurrency(goal.currentAmount, currency)}</span>
-                    <span>{formatCurrency(goal.targetAmount, currency)}</span>
+                  <div className="relative pt-1">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="font-medium text-primary-600 dark:text-primary-400">
+                        {Math.round(goal.progress)}%
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        {formatCurrency(goal.targetAmount, currency)}
+                      </span>
+                    </div>
+                    <ProgressBar value={goal.progress} size="sm" showLabel={false} />
                   </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
+                    Saved: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(goal.currentAmount, currency)}</span>
+                  </p>
                 </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">No financial goals yet. Create one to get started!</p>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-primary-100 dark:bg-primary-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-primary-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No financial goals yet</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-4 max-w-md mx-auto">
+                Start your journey to financial freedom by creating your first savings goal.
+              </p>
+              <Link
+                href="/goals/financial"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create Goal
+              </Link>
+            </div>
+          )}
         </Card>
       </div>
     </DashboardLayout>

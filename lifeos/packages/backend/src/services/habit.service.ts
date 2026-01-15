@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import logger from '../lib/logger.js';
+import { achievementService } from './achievement.service.js';
 
 export class HabitService {
   /**
@@ -64,6 +65,12 @@ export class HabitService {
     });
 
     logger.info({ userId, habitId: habit.id }, 'Habit created');
+    
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(userId).catch(err => 
+      logger.error({ err, userId }, 'Failed to check achievements')
+    );
+    
     return habit;
   }
 
@@ -118,6 +125,11 @@ export class HabitService {
 
     // Update streak
     await this.updateStreak(habitId);
+
+    // Check and unlock any achievements (for streak milestones)
+    achievementService.checkAndUnlock(userId).catch(err => 
+      logger.error({ err, userId }, 'Failed to check achievements')
+    );
 
     logger.info({ habitId, date, completed: checkIn.completed }, 'Habit logged');
     return checkIn;

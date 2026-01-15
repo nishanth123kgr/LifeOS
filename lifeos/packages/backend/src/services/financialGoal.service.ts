@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import logger from '../lib/logger.js';
 import { GoalStatus } from '@prisma/client';
+import { achievementService } from './achievement.service.js';
 
 export interface CreateFinancialGoalDTO {
   userId: string;
@@ -106,6 +107,12 @@ export class FinancialGoalService {
     });
 
     logger.info({ goalId: goal.id }, 'Financial goal created');
+    
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(data.userId).catch(err => 
+      logger.error({ err, userId: data.userId }, 'Failed to check achievements')
+    );
+    
     return this.withProgress(goal);
   }
 
@@ -137,6 +144,11 @@ export class FinancialGoalService {
         status: this.calculateStatus(newCurrentAmount, newTargetAmount),
       },
     });
+
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(userId).catch(err => 
+      logger.error({ err, userId }, 'Failed to check achievements')
+    );
 
     return this.withProgress(goal);
   }
@@ -185,6 +197,11 @@ export class FinancialGoalService {
         status: this.calculateStatus(newAmount, goal.targetAmount),
       },
     });
+
+    // Check and unlock any achievements (for savings milestones)
+    achievementService.checkAndUnlock(userId).catch(err => 
+      logger.error({ err, userId }, 'Failed to check achievements')
+    );
 
     return this.withProgress(updated);
   }

@@ -3,6 +3,8 @@ import prisma from '../lib/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { LifeSystemInput } from '../schemas/index.js';
+import { achievementService } from '../services/achievement.service.js';
+import logger from '../lib/logger.js';
 
 // Calculate adherence percentage for the last 30 days
 const calculateAdherence = (logs: { adhered: boolean }[]): number => {
@@ -112,6 +114,11 @@ export const createLifeSystem = async (
         adherenceTarget: data.adherenceTarget || 80,
       },
     });
+
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(req.userId!).catch(err => 
+      logger.error({ err, userId: req.userId }, 'Failed to check achievements')
+    );
 
     res.status(201).json({
       status: 'success',

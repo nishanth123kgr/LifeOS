@@ -113,6 +113,18 @@
   .scrollbar-auto:hover::-webkit-scrollbar-thumb {
     @apply bg-gray-300 dark:bg-gray-600;
   }
+
+  /* Hide number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 @layer components {

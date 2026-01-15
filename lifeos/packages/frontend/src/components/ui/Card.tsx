@@ -1,14 +1,15 @@
-import { ReactNode } from 'react';
+import { ReactNode, MouseEventHandler } from 'react';
 import { cn } from '@/lib/utils';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }
 
-export function Card({ children, className }: CardProps) {
+export function Card({ children, className, onClick }: CardProps) {
   return (
-    <div className={cn('card', className)}>
+    <div className={cn('card', className)} onClick={onClick}>
       {children}
     </div>
   );

@@ -4,6 +4,8 @@ import { AppError } from '../middleware/errorHandler.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { FitnessGoalInput } from '../schemas/index.js';
 import { GoalStatus } from '@prisma/client';
+import { achievementService } from '../services/achievement.service.js';
+import logger from '../lib/logger.js';
 
 // Calculate progress for fitness goals
 const calculateProgress = (start: number, current: number, target: number): number => {
@@ -115,6 +117,11 @@ export const createFitnessGoal = async (
       },
     });
 
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(req.userId!).catch(err => 
+      logger.error({ err, userId: req.userId }, 'Failed to check achievements')
+    );
+
     res.status(201).json({
       status: 'success',
       data: { goal: { ...goal, progress } },
@@ -173,6 +180,11 @@ export const updateFitnessGoal = async (
         },
       },
     });
+
+    // Check and unlock any achievements
+    achievementService.checkAndUnlock(req.userId!).catch(err => 
+      logger.error({ err, userId: req.userId }, 'Failed to check achievements')
+    );
 
     res.json({
       status: 'success',

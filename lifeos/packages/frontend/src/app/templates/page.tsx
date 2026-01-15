@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Star, Target, Dumbbell, CheckSquare, Copy, Check, Lightbulb } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
@@ -39,6 +40,7 @@ const categoryColors: Record<string, string> = {
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [templates, setTemplates] = useState<GoalTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -76,10 +78,20 @@ export default function TemplatesPage() {
       setCopiedId(template.id || null);
       toast.success(`Created goal from "${template.name}" template!`);
       
+      // Invalidate relevant queries so fresh data is fetched
+      const category = template.category.toUpperCase();
+      if (category === 'FINANCIAL') {
+        queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
+      } else if (category === 'FITNESS') {
+        queryClient.invalidateQueries({ queryKey: ['fitness-goals'] });
+      } else if (category === 'HABIT') {
+        queryClient.invalidateQueries({ queryKey: ['habits'] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      
       // Navigate to the appropriate page based on category
       setTimeout(() => {
         setCopiedId(null);
-        const category = template.category.toUpperCase();
         if (category === 'FINANCIAL') {
           router.push('/goals/financial');
         } else if (category === 'FITNESS') {
