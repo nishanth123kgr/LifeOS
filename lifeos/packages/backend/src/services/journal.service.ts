@@ -319,7 +319,7 @@ export class JournalService {
     const sortedDates = Array.from(uniqueDates).sort().reverse();
 
     for (const dateStr of sortedDates) {
-      const entryDate = new Date(dateStr);
+      const entryDate = new Date(dateStr as string);
       const daysDiff = Math.floor((checkDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysDiff <= 1) {
