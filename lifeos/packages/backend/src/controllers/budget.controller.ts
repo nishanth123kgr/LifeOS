@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import { BudgetCategory } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { AuthRequest } from '../middleware/auth.js';
@@ -18,7 +19,19 @@ export const getBudgets = async (
         ...(year && { year: parseInt(year as string) }),
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            linkedGoal: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                targetAmount: true,
+                currentAmount: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
     });
@@ -56,14 +69,26 @@ export const getBudget = async (
   try {
     const { month, year } = req.params;
 
-    const budget = await prisma.budget.findFirst({
+    let budget = await prisma.budget.findFirst({
       where: {
         userId: req.userId,
         month: parseInt(month),
         year: parseInt(year),
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            linkedGoal: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                targetAmount: true,
+                currentAmount: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -71,8 +96,68 @@ export const getBudget = async (
       throw new AppError('Budget not found', 404);
     }
 
-    const totalPlanned = budget.items.reduce((sum, item) => sum + item.planned, 0);
-    const totalActual = budget.items.reduce((sum, item) => sum + item.actual, 0);
+    // Check for new financial goals that don't have budget items yet
+    const financialGoals = await prisma.financialGoal.findMany({
+      where: {
+        userId: req.userId,
+        isArchived: false,
+        isPaused: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        monthlyContribution: true,
+      },
+    });
+
+    // Get existing linked goal IDs
+    const existingGoalIds = budget.items
+      .filter(item => item.linkedGoalId)
+      .map(item => item.linkedGoalId);
+
+    // Find goals that need to be added
+    const newGoals = financialGoals.filter(goal => !existingGoalIds.includes(goal.id));
+
+    // Add new financial goals as budget items
+    if (newGoals.length > 0) {
+      await prisma.budgetItem.createMany({
+        data: newGoals.map(goal => ({
+          budgetId: budget!.id,
+          category: 'FINANCIAL_GOAL' as BudgetCategory,
+          name: goal.name,
+          planned: goal.monthlyContribution,
+          actual: 0,
+          linkedGoalId: goal.id,
+        })),
+      });
+
+      // Refetch budget with new items
+      budget = await prisma.budget.findFirst({
+        where: {
+          userId: req.userId,
+          month: parseInt(month),
+          year: parseInt(year),
+        },
+        include: {
+          items: {
+            include: {
+              linkedGoal: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  targetAmount: true,
+                  currentAmount: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    const totalPlanned = budget!.items.reduce((sum, item) => sum + item.planned, 0);
+    const totalActual = budget!.items.reduce((sum, item) => sum + item.actual, 0);
 
     res.json({
       status: 'success',
@@ -81,9 +166,9 @@ export const getBudget = async (
           ...budget,
           totalPlanned,
           totalActual,
-          surplus: budget.income - totalActual,
-          plannedSurplus: budget.income - totalPlanned,
-          isOverBudget: totalActual > budget.income,
+          surplus: budget!.income - totalActual,
+          plannedSurplus: budget!.income - totalPlanned,
+          isOverBudget: totalActual > budget!.income,
         },
       },
     });
@@ -113,23 +198,96 @@ export const createBudget = async (
       throw new AppError('Budget already exists for this month', 400);
     }
 
+    // Get user's budget template
+    const template = await prisma.budgetTemplate.findUnique({
+      where: { userId: req.userId },
+      include: {
+        items: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    // Get all active financial goals for this user
+    const financialGoals = await prisma.financialGoal.findMany({
+      where: {
+        userId: req.userId,
+        isArchived: false,
+        isPaused: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        monthlyContribution: true,
+      },
+    });
+
+    // Create budget with items from template or provided items
+    let budgetItemsData: any[] = [];
+    
+    if (data.items && data.items.length > 0) {
+      // Use provided items
+      budgetItemsData = data.items.map(item => ({
+        category: item.category,
+        planned: item.planned,
+        actual: item.actual || 0,
+        notes: item.notes,
+        linkedGoalId: item.linkedGoalId,
+      }));
+    } else if (template && template.items.length > 0) {
+      // Use template items
+      budgetItemsData = template.items.map(item => ({
+        category: item.category,
+        name: item.category === 'FINANCIAL_GOAL' ? undefined : undefined, // Will be set from goal
+        planned: item.plannedAmount,
+        actual: 0,
+        notes: item.notes,
+        linkedGoalId: item.linkedGoalId,
+      }));
+    } else {
+      // Use default categories
+      budgetItemsData = defaultCategories.map(category => ({
+        category,
+        planned: 0,
+        actual: 0,
+      }));
+
+      // Add financial goals as FINANCIAL_GOAL category items
+      const goalItems = financialGoals.map(goal => ({
+        category: 'FINANCIAL_GOAL' as BudgetCategory,
+        name: goal.name,
+        planned: goal.monthlyContribution,
+        actual: 0,
+        linkedGoalId: goal.id,
+      }));
+
+      budgetItemsData = [...budgetItemsData, ...goalItems];
+    }
+
     const budget = await prisma.budget.create({
       data: {
         userId: req.userId!,
         month: data.month,
         year: data.year,
         income: data.income,
-        items: data.items ? {
-          create: data.items.map(item => ({
-            category: item.category,
-            planned: item.planned,
-            actual: item.actual || 0,
-            notes: item.notes,
-          })),
-        } : undefined,
+        items: {
+          create: budgetItemsData,
+        },
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            linkedGoal: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                targetAmount: true,
+                currentAmount: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -176,33 +334,57 @@ export const updateBudget = async (
     // Update items if provided
     if (items && Array.isArray(items)) {
       for (const item of items) {
-        await prisma.budgetItem.upsert({
+        // Find existing item by id or by category+linkedGoalId
+        const existingItem = await prisma.budgetItem.findFirst({
           where: {
-            budgetId_category: {
-              budgetId: budget.id,
-              category: item.category,
-            },
-          },
-          update: {
-            planned: item.planned,
-            actual: item.actual ?? 0,
-            notes: item.notes,
-          },
-          create: {
             budgetId: budget.id,
             category: item.category,
-            planned: item.planned,
-            actual: item.actual || 0,
-            notes: item.notes,
+            linkedGoalId: item.linkedGoalId || null,
           },
         });
+
+        if (existingItem) {
+          await prisma.budgetItem.update({
+            where: { id: existingItem.id },
+            data: {
+              planned: item.planned,
+              actual: item.actual ?? existingItem.actual,
+              notes: item.notes,
+            },
+          });
+        } else {
+          await prisma.budgetItem.create({
+            data: {
+              budgetId: budget.id,
+              category: item.category,
+              planned: item.planned,
+              actual: item.actual || 0,
+              notes: item.notes,
+              linkedGoalId: item.linkedGoalId,
+            },
+          });
+        }
       }
     }
 
     // Fetch updated budget
     const updatedBudget = await prisma.budget.findUnique({
       where: { id: budget.id },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            linkedGoal: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                targetAmount: true,
+                currentAmount: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     const totalPlanned = updatedBudget!.items.reduce((sum, item) => sum + item.planned, 0);
@@ -219,6 +401,184 @@ export const updateBudget = async (
           isOverBudget: totalActual > updatedBudget!.income,
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Default categories - SAVINGS and INVESTMENTS removed, financial goals are added dynamically
+const defaultCategories: BudgetCategory[] = [
+  'RENT', 'FOOD', 'TRANSPORT', 'SUBSCRIPTIONS', 'UTILITIES',
+  'HEALTHCARE', 'ENTERTAINMENT', 'SHOPPING', 'MISCELLANEOUS'
+];
+
+export const initializeBudgetCategories = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { month, year } = req.params;
+
+    const budget = await prisma.budget.findFirst({
+      where: {
+        userId: req.userId,
+        month: parseInt(month),
+        year: parseInt(year),
+      },
+      include: { items: true },
+    });
+
+    if (!budget) {
+      throw new AppError('Budget not found', 404);
+    }
+
+    // Only initialize if there are no items
+    if (budget.items.length === 0) {
+      // Try to get user's budget template
+      const template = await prisma.budgetTemplate.findUnique({
+        where: { userId: req.userId },
+        include: {
+          items: {
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+
+      // Get all active financial goals for this user
+      const financialGoals = await prisma.financialGoal.findMany({
+        where: {
+          userId: req.userId,
+          isArchived: false,
+          isPaused: false,
+        },
+        select: {
+          id: true,
+          name: true,
+          monthlyContribution: true,
+        },
+      });
+
+      if (template && template.items.length > 0) {
+        // Use template items
+        await prisma.budgetItem.createMany({
+          data: template.items.map(item => ({
+            budgetId: budget.id,
+            category: item.category,
+            planned: item.plannedAmount,
+            actual: 0,
+            notes: item.notes,
+            linkedGoalId: item.linkedGoalId,
+          })),
+        });
+      } else {
+        // Create default category items
+        const defaultItems = defaultCategories.map(category => ({
+          budgetId: budget.id,
+          category,
+          planned: 0,
+          actual: 0,
+        }));
+
+        // Add financial goals as FINANCIAL_GOAL category items
+        const goalItems = financialGoals.map(goal => ({
+          budgetId: budget.id,
+          category: 'FINANCIAL_GOAL' as BudgetCategory,
+          name: goal.name,
+          planned: goal.monthlyContribution,
+          actual: 0,
+          linkedGoalId: goal.id,
+        }));
+
+        await prisma.budgetItem.createMany({
+          data: [...defaultItems, ...goalItems],
+        });
+      }
+    }
+
+    // Fetch updated budget
+    const updatedBudget = await prisma.budget.findUnique({
+      where: { id: budget.id },
+      include: {
+        items: {
+          include: {
+            linkedGoal: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                targetAmount: true,
+                currentAmount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({
+      status: 'success',
+      data: { budget: updatedBudget },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const linkBudgetItemToGoal = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { itemId } = req.params;
+    const { goalId } = req.body;
+
+    // Verify budget item exists and belongs to user
+    const budgetItem = await prisma.budgetItem.findFirst({
+      where: {
+        id: itemId,
+        budget: { userId: req.userId },
+      },
+      include: { budget: true },
+    });
+
+    if (!budgetItem) {
+      throw new AppError('Budget item not found', 404);
+    }
+
+    // If goalId provided, verify it belongs to user
+    if (goalId) {
+      const goal = await prisma.financialGoal.findFirst({
+        where: { id: goalId, userId: req.userId },
+      });
+
+      if (!goal) {
+        throw new AppError('Financial goal not found', 404);
+      }
+    }
+
+    // Update the budget item
+    const updatedItem = await prisma.budgetItem.update({
+      where: { id: itemId },
+      data: { linkedGoalId: goalId || null },
+      include: {
+        linkedGoal: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            targetAmount: true,
+            currentAmount: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      status: 'success',
+      data: { item: updatedItem },
     });
   } catch (error) {
     next(error);

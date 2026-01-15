@@ -221,17 +221,6 @@ lifeos/
 | DELETE | `/api/habits/:id` | Delete habit |
 | POST | `/api/habits/:id/entries` | Log entry |
 
-### Life Systems
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/life-systems` | List all systems |
-| POST | `/api/life-systems` | Create system |
-| GET | `/api/life-systems/:id` | Get system |
-| PATCH | `/api/life-systems/:id` | Update system |
-| DELETE | `/api/life-systems/:id` | Delete system |
-| POST | `/api/life-systems/:id/adherence` | Log adherence |
-
 ### Dashboard
 
 | Method | Endpoint | Description |
@@ -282,8 +271,6 @@ The application uses the following main entities:
 - **FitnessGoal**: Fitness objectives and tracking
 - **Habit**: Daily/weekly habits with entries
 - **HabitEntry**: Individual habit completions
-- **LifeSystem**: Personal systems and routines
-- **SystemAdherence**: System adherence logs
 - **Budget**: Monthly budgets with categories
 - **BudgetCategory**: Budget category allocations
 

@@ -56,8 +56,20 @@ export default function NewBudgetPage() {
     },
   });
 
+  const defaultCategories = [
+    'RENT', 'FOOD', 'TRANSPORT', 'SUBSCRIPTIONS', 'UTILITIES',
+    'HEALTHCARE', 'ENTERTAINMENT', 'SHOPPING', 'MISCELLANEOUS'
+  ];
+
   const createMutation = useMutation({
-    mutationFn: (data: BudgetForm) => api.post('/budgets', data),
+    mutationFn: (data: BudgetForm) => api.post('/budgets', {
+      ...data,
+      items: defaultCategories.map(category => ({
+        category,
+        planned: 0,
+        actual: 0,
+      })),
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       toast.success('Budget created successfully!');

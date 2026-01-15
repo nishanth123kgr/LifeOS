@@ -4,10 +4,9 @@ import { AuthRequest } from '../middleware/auth.js';
 
 // Life Score weights (configurable)
 const SCORE_WEIGHTS = {
-  finance: 0.40,
+  finance: 0.45,
   fitness: 0.30,
-  habits: 0.20,
-  systems: 0.10,
+  habits: 0.25,
 };
 
 // Calculate financial score
@@ -51,21 +50,6 @@ const calculateHabitsScore = (habits: any[]): number => {
   return Math.round(totalScore / habits.length);
 };
 
-// Calculate systems score
-const calculateSystemsScore = (systems: any[]): number => {
-  if (systems.length === 0) return 0;
-  
-  const totalAdherence = systems.reduce((sum, system) => {
-    const adheredCount = system.adherenceLogs.filter((l: any) => l.adhered).length;
-    const adherence = system.adherenceLogs.length > 0 
-      ? (adheredCount / system.adherenceLogs.length) * 100 
-      : 0;
-    return sum + adherence;
-  }, 0);
-  
-  return Math.round(totalAdherence / systems.length);
-};
-
 export const getDashboard = async (
   req: AuthRequest,
   res: Response,
@@ -75,7 +59,7 @@ export const getDashboard = async (
     const userId = req.userId!;
 
     // Fetch all data in parallel
-    const [financialGoals, fitnessGoals, habits, systems, user] = await Promise.all([
+    const [financialGoals, fitnessGoals, habits, user] = await Promise.all([
       prisma.financialGoal.findMany({
         where: { userId, isArchived: false, isPaused: false },
       }),
@@ -94,18 +78,6 @@ export const getDashboard = async (
           },
         },
       }),
-      prisma.lifeSystem.findMany({
-        where: { userId, isActive: true },
-        include: {
-          adherenceLogs: {
-            where: {
-              date: {
-                gte: new Date(new Date().setDate(new Date().getDate() - 30)),
-              },
-            },
-          },
-        },
-      }),
       prisma.user.findUnique({
         where: { id: userId },
         select: { name: true, currency: true },
@@ -116,14 +88,12 @@ export const getDashboard = async (
     const financeScore = calculateFinanceScore(financialGoals);
     const fitnessScore = calculateFitnessScore(fitnessGoals);
     const habitsScore = calculateHabitsScore(habits);
-    const systemsScore = calculateSystemsScore(systems);
 
     // Calculate overall Life Score
     const lifeScore = Math.round(
       financeScore * SCORE_WEIGHTS.finance +
       fitnessScore * SCORE_WEIGHTS.fitness +
-      habitsScore * SCORE_WEIGHTS.habits +
-      systemsScore * SCORE_WEIGHTS.systems
+      habitsScore * SCORE_WEIGHTS.habits
     );
 
     // Prepare financial summary
@@ -189,25 +159,6 @@ export const getDashboard = async (
       })),
     };
 
-    // Prepare systems summary
-    const systemsSummary = {
-      totalSystems: systems.length,
-      systems: systems.map(s => {
-        const adheredCount = s.adherenceLogs.filter(l => l.adhered).length;
-        const adherence = s.adherenceLogs.length > 0
-          ? Math.round((adheredCount / s.adherenceLogs.length) * 100)
-          : 0;
-        return {
-          id: s.id,
-          name: s.name,
-          category: s.category,
-          adherence,
-          adherenceTarget: s.adherenceTarget,
-          isOnTrack: adherence >= s.adherenceTarget,
-        };
-      }),
-    };
-
     res.json({
       status: 'success',
       data: {
@@ -217,13 +168,11 @@ export const getDashboard = async (
           finance: financeScore,
           fitness: fitnessScore,
           habits: habitsScore,
-          systems: systemsScore,
         },
         weights: SCORE_WEIGHTS,
         financial: financialSummary,
         fitness: fitnessSummary,
         habits: habitsSummary,
-        systems: systemsSummary,
       },
     });
   } catch (error) {
@@ -239,7 +188,7 @@ export const getLifeScore = async (
   try {
     const userId = req.userId!;
 
-    const [financialGoals, fitnessGoals, habits, systems] = await Promise.all([
+    const [financialGoals, fitnessGoals, habits] = await Promise.all([
       prisma.financialGoal.findMany({
         where: { userId, isArchived: false, isPaused: false },
       }),
@@ -249,30 +198,16 @@ export const getLifeScore = async (
       prisma.habit.findMany({
         where: { userId, isActive: true },
       }),
-      prisma.lifeSystem.findMany({
-        where: { userId, isActive: true },
-        include: {
-          adherenceLogs: {
-            where: {
-              date: {
-                gte: new Date(new Date().setDate(new Date().getDate() - 30)),
-              },
-            },
-          },
-        },
-      }),
     ]);
 
     const financeScore = calculateFinanceScore(financialGoals);
     const fitnessScore = calculateFitnessScore(fitnessGoals);
     const habitsScore = calculateHabitsScore(habits);
-    const systemsScore = calculateSystemsScore(systems);
 
     const lifeScore = Math.round(
       financeScore * SCORE_WEIGHTS.finance +
       fitnessScore * SCORE_WEIGHTS.fitness +
-      habitsScore * SCORE_WEIGHTS.habits +
-      systemsScore * SCORE_WEIGHTS.systems
+      habitsScore * SCORE_WEIGHTS.habits
     );
 
     res.json({
@@ -283,7 +218,6 @@ export const getLifeScore = async (
           finance: { score: financeScore, weight: SCORE_WEIGHTS.finance },
           fitness: { score: fitnessScore, weight: SCORE_WEIGHTS.fitness },
           habits: { score: habitsScore, weight: SCORE_WEIGHTS.habits },
-          systems: { score: systemsScore, weight: SCORE_WEIGHTS.systems },
         },
       },
     });

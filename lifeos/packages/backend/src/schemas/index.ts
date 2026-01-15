@@ -80,22 +80,6 @@ export const habitSchema = z.object({
   }),
 });
 
-export const lifeSystemSchema = z.object({
-  body: z.object({
-    name: z.string().min(1, 'Name is required'),
-    description: z.string().optional(),
-    category: z.enum([
-      'FINANCE',
-      'HEALTH',
-      'PRODUCTIVITY',
-      'RELATIONSHIPS',
-      'LEARNING',
-      'CUSTOM',
-    ]),
-    adherenceTarget: z.number().min(0).max(100).optional(),
-  }),
-});
-
 export const budgetSchema = z.object({
   body: z.object({
     month: z.number().min(1).max(12),
@@ -111,13 +95,13 @@ export const budgetSchema = z.object({
         'HEALTHCARE',
         'ENTERTAINMENT',
         'SHOPPING',
-        'SAVINGS',
-        'INVESTMENTS',
         'MISCELLANEOUS',
+        'FINANCIAL_GOAL',
       ]),
       planned: z.number().min(0),
       actual: z.number().min(0).optional(),
       notes: z.string().optional(),
+      linkedGoalId: z.string().uuid().optional(),
     })).optional(),
   }),
 });
@@ -128,5 +112,4 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];
 export type FinancialGoalInput = z.infer<typeof financialGoalSchema>['body'];
 export type FitnessGoalInput = z.infer<typeof fitnessGoalSchema>['body'];
 export type HabitInput = z.infer<typeof habitSchema>['body'];
-export type LifeSystemInput = z.infer<typeof lifeSystemSchema>['body'];
 export type BudgetInput = z.infer<typeof budgetSchema>['body'];

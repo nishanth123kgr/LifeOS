@@ -3,10 +3,9 @@ import logger from '../lib/logger.js';
 
 // Score calculation weights
 const SCORE_WEIGHTS = {
-  finance: 0.40,
+  finance: 0.45,
   fitness: 0.30,
-  habits: 0.20,
-  systems: 0.10,
+  habits: 0.25,
 };
 
 export class ProgressSnapshotService {
@@ -51,20 +50,6 @@ export class ProgressSnapshotService {
   }
 
   /**
-   * Calculate systems score
-   */
-  private calculateSystemsScore(systems: any[]): number {
-    if (systems.length === 0) return 0;
-    const totalAdherence = systems.reduce((sum, system) => {
-      const adheredCount = system.adherenceLogs?.filter((l: any) => l.adhered).length || 0;
-      const totalLogs = system.adherenceLogs?.length || 0;
-      const adherence = totalLogs > 0 ? (adheredCount / totalLogs) * 100 : 0;
-      return sum + adherence;
-    }, 0);
-    return Math.round(totalAdherence / systems.length);
-  }
-
-  /**
    * Create a progress snapshot for today
    */
   async createSnapshot(userId: string) {
@@ -83,7 +68,7 @@ export class ProgressSnapshotService {
     }
 
     // Fetch all data in parallel
-    const [financialGoals, fitnessGoals, habits, systems] = await Promise.all([
+    const [financialGoals, fitnessGoals, habits] = await Promise.all([
       prisma.financialGoal.findMany({
         where: { userId, isArchived: false, isPaused: false },
       }),
@@ -93,29 +78,17 @@ export class ProgressSnapshotService {
       prisma.habit.findMany({
         where: { userId, isActive: true },
       }),
-      prisma.lifeSystem.findMany({
-        where: { userId, isActive: true },
-        include: {
-          adherenceLogs: {
-            where: {
-              date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-            },
-          },
-        },
-      }),
     ]);
 
     // Calculate scores
     const financeScore = this.calculateFinanceScore(financialGoals);
     const fitnessScore = this.calculateFitnessScore(fitnessGoals);
     const habitsScore = this.calculateHabitsScore(habits);
-    const systemsScore = this.calculateSystemsScore(systems);
 
     const lifeScore = Math.round(
       financeScore * SCORE_WEIGHTS.finance +
       fitnessScore * SCORE_WEIGHTS.fitness +
-      habitsScore * SCORE_WEIGHTS.habits +
-      systemsScore * SCORE_WEIGHTS.systems
+      habitsScore * SCORE_WEIGHTS.habits
     );
 
     const totalSaved = financialGoals.reduce((sum, g) => sum + g.currentAmount, 0);
@@ -127,7 +100,7 @@ export class ProgressSnapshotService {
         financeScore,
         fitnessScore,
         habitsScore,
-        systemsScore,
+        systemsScore: 0,
         totalSaved,
         activeHabits: habits.length,
         activeGoals: financialGoals.length + fitnessGoals.length,
@@ -139,7 +112,7 @@ export class ProgressSnapshotService {
         financeScore,
         fitnessScore,
         habitsScore,
-        systemsScore,
+        systemsScore: 0,
         totalSaved,
         activeHabits: habits.length,
         activeGoals: financialGoals.length + fitnessGoals.length,

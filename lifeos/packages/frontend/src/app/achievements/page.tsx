@@ -94,7 +94,7 @@ export default function AchievementsPage() {
     }
   };
 
-  const categories = ['GENERAL', 'FINANCE', 'FITNESS', 'HABITS', 'SYSTEMS'];
+  const categories = ['GENERAL', 'FINANCE', 'FITNESS', 'HABITS'];
 
   const filteredAchievements = selectedCategory
     ? achievements.filter(a => a.category === selectedCategory)

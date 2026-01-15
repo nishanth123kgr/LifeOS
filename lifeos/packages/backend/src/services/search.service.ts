@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma.js';
 import logger from '../lib/logger.js';
 
-type SearchableEntity = 'financialGoals' | 'fitnessGoals' | 'habits' | 'systems' | 'budgets' | 'journals' | 'all';
+type SearchableEntity = 'financialGoals' | 'fitnessGoals' | 'habits' | 'budgets' | 'journals' | 'all';
 
 interface SearchOptions {
   query?: string;
@@ -43,7 +43,7 @@ export class SearchService {
     } = options;
 
     const searchEntities = entities.includes('all') 
-      ? ['financialGoals', 'fitnessGoals', 'habits', 'systems', 'budgets', 'journals']
+      ? ['financialGoals', 'fitnessGoals', 'habits', 'budgets', 'journals']
       : entities;
 
     const results: SearchResult[] = [];
@@ -145,36 +145,6 @@ export class SearchService {
           frequency: h.frequency,
           currentStreak: h.currentStreak,
           longestStreak: h.longestStreak,
-        },
-      })));
-    }
-
-    // Search Life Systems
-    if (searchEntities.includes('systems')) {
-      const systems = await prisma.lifeSystem.findMany({
-        where: {
-          userId,
-          ...(query && {
-            OR: [
-              { name: { contains: query, mode: 'insensitive' } },
-              { description: { contains: query, mode: 'insensitive' } },
-            ],
-          }),
-          ...(hasDateFilter && { createdAt: dateFilter }),
-        },
-        orderBy: { createdAt: sortOrder },
-      });
-
-      results.push(...systems.map(s => ({
-        type: 'life_system',
-        id: s.id,
-        title: s.name,
-        description: s.description || undefined,
-        status: s.isActive ? 'ACTIVE' : 'INACTIVE',
-        createdAt: s.createdAt,
-        metadata: {
-          category: s.category,
-          adherenceTarget: s.adherenceTarget,
         },
       })));
     }

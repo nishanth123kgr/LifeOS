@@ -515,10 +515,10 @@ export default function NewFinancialGoalPage() {
           {/* Right Side - Live Preview */}
           <div className="lg:sticky lg:top-6 space-y-6 h-fit">
             {/* Main Preview Card */}
-            <Card className="overflow-hidden">
+            <Card className="rounded-2xl pt-4 px-4">
               {/* Gradient Header */}
               <div className={cn(
-                "bg-gradient-to-br p-6 text-white",
+                "bg-gradient-to-br p-6 text-white rounded-2xl",
                 selectedType.color
               )}>
                 <div className="flex items-center gap-3 mb-4">
@@ -545,7 +545,7 @@ export default function NewFinancialGoalPage() {
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="px-2 pb-6 pt-6 space-y-6">
                 {/* Progress Bar */}
                 <div>
                   <div className="flex justify-between text-sm mb-2">

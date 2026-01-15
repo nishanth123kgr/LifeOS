@@ -121,6 +121,7 @@ export class BudgetService {
       planned: number;
       actual?: number;
       notes?: string;
+      linkedGoalId?: string;
     }
   ) {
     const budget = await prisma.budget.findFirst({
@@ -132,9 +133,11 @@ export class BudgetService {
     }
 
     // Check if item exists
-    const existingItem = await prisma.budgetItem.findUnique({
+    const existingItem = await prisma.budgetItem.findFirst({
       where: {
-        budgetId_category: { budgetId, category: data.category },
+        budgetId,
+        category: data.category,
+        linkedGoalId: data.linkedGoalId || null,
       },
     });
 
@@ -156,6 +159,7 @@ export class BudgetService {
         planned: data.planned,
         actual: data.actual ?? 0,
         notes: data.notes,
+        linkedGoalId: data.linkedGoalId,
       },
     });
   }

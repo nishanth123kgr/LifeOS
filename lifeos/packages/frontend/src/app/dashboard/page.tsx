@@ -14,7 +14,6 @@ import {
   Target, 
   Dumbbell, 
   CheckSquare, 
-  Settings2,
   TrendingUp,
   Flame,
   ArrowRight,
@@ -30,8 +29,8 @@ import {
 interface DashboardData {
   user: { name: string; currency: string };
   lifeScore: number;
-  scores: { finance: number; fitness: number; habits: number; systems: number };
-  weights: { finance: number; fitness: number; habits: number; systems: number };
+  scores: { finance: number; fitness: number; habits: number };
+  weights: { finance: number; fitness: number; habits: number };
   financial: {
     totalGoals: number;
     totalTarget: number;
@@ -47,10 +46,6 @@ interface DashboardData {
     totalHabits: number;
     totalStreakDays: number;
     habits: Array<{ id: string; name: string; currentStreak: number; longestStreak: number; checkedInToday: boolean }>;
-  };
-  systems: {
-    totalSystems: number;
-    systems: Array<{ id: string; name: string; adherence: number; isOnTrack: boolean }>;
   };
 }
 
@@ -368,54 +363,6 @@ export default function DashboardPage() {
                   <p className="text-gray-500 dark:text-gray-400">No habits yet</p>
                   <Link href="/habits" className="text-primary-500 text-sm mt-2 inline-block hover:underline">
                     Create your first habit
-                  </Link>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Life Systems */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <CardHeader title="Life Systems" subtitle="Your behavioral rules" className="mb-0" />
-              <Link href="/systems" className="text-sm text-primary-500 hover:text-primary-600 font-medium flex items-center gap-1">
-                View all <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {dashboard.systems.systems.length > 0 ? (
-                dashboard.systems.systems.slice(0, 4).map((system) => (
-                  <div key={system.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center \${
-                        system.isOnTrack 
-                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white' 
-                          : 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
-                      }`}>
-                        <Settings2 className="w-5 h-5" />
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-white">{system.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24">
-                        <ProgressBar value={system.adherence} size="sm" showLabel={false} />
-                      </div>
-                      <span className={`text-sm font-bold \${
-                        system.adherence >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 
-                        system.adherence >= 50 ? 'text-amber-600 dark:text-amber-400' : 
-                        'text-red-600 dark:text-red-400'
-                      }`}>
-                        {system.adherence}%
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <Settings2 className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400">No systems yet</p>
-                  <Link href="/systems" className="text-primary-500 text-sm mt-2 inline-block hover:underline">
-                    Create your first system
                   </Link>
                 </div>
               )}

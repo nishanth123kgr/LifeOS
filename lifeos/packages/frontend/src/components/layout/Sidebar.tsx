@@ -65,8 +65,9 @@ const navigationGroups: NavGroup[] = [
   {
     label: 'Planning',
     items: [
-      { name: 'Life Systems', href: '/systems', icon: Settings2 },
       { name: 'Budget', href: '/budget', icon: Wallet },
+      { name: 'Transactions', href: '/transactions', icon: Activity },
+      { name: 'Accounts', href: '/accounts', icon: BarChart3 },
       { name: 'Projections', href: '/projections', icon: TrendingUp },
     ],
   },

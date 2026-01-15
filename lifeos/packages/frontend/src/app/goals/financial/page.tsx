@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { StatusBadge } from '@/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -24,8 +25,16 @@ import {
   Calendar,
   PiggyBank,
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  DollarSign
 } from 'lucide-react';
+
+interface Account {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+}
 
 interface FinancialGoal {
   id: string;
@@ -60,6 +69,10 @@ export default function FinancialGoalsPage() {
   const { user } = useAuthStore();
   const currency = user?.currency || 'INR';
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [contributingGoalId, setContributingGoalId] = useState<string | null>(null);
+  const [contributionAmount, setContributionAmount] = useState('');
+  const [contributionAccountId, setContributionAccountId] = useState('');
+  const [contributionDescription, setContributionDescription] = useState('');
 
   const { data, isLoading } = useQuery<{ data: { goals: FinancialGoal[] } }>({
     queryKey: ['financial-goals'],
@@ -68,6 +81,17 @@ export default function FinancialGoalsPage() {
       return response.data;
     },
   });
+
+  // Fetch accounts for contributions
+  const { data: accountsData } = useQuery<{ accounts: Account[] }>({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      const response = await api.get('/accounts');
+      return response.data;
+    },
+  });
+
+  const accounts = accountsData?.accounts || [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/financial-goals/${id}`),
@@ -86,6 +110,43 @@ export default function FinancialGoalsPage() {
       toast.success('Goal status updated!');
     },
   });
+
+  const contributionMutation = useMutation({
+    mutationFn: (data: { amount: number; financialGoalId: string; fromAccountId: string; description?: string }) => 
+      api.post('/transactions', {
+        ...data,
+        type: 'GOAL_CONTRIBUTION',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success('Contribution added!');
+      setContributingGoalId(null);
+      setContributionAmount('');
+      setContributionAccountId('');
+      setContributionDescription('');
+    },
+    onError: () => toast.error('Failed to add contribution'),
+  });
+
+  const handleAddContribution = (goalId: string) => {
+    const amount = parseFloat(contributionAmount);
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    if (!contributionAccountId) {
+      toast.error('Please select an account');
+      return;
+    }
+    contributionMutation.mutate({
+      amount,
+      financialGoalId: goalId,
+      fromAccountId: contributionAccountId,
+      description: contributionDescription || undefined,
+    });
+  };
 
   const goals = data?.data?.goals || [];
   const activeGoals = goals.filter(g => !g.isPaused && !g.isArchived);
@@ -216,6 +277,22 @@ export default function FinancialGoalsPage() {
                       key={goal.id} 
                       goal={goal} 
                       currency={currency}
+                      accounts={accounts}
+                      isContributing={contributingGoalId === goal.id}
+                      contributionAmount={contributionAmount}
+                      contributionAccountId={contributionAccountId}
+                      contributionDescription={contributionDescription}
+                      onContributionToggle={() => {
+                        setContributingGoalId(contributingGoalId === goal.id ? null : goal.id);
+                        setContributionAmount('');
+                        setContributionAccountId('');
+                        setContributionDescription('');
+                      }}
+                      onContributionAmountChange={setContributionAmount}
+                      onContributionAccountChange={setContributionAccountId}
+                      onContributionDescriptionChange={setContributionDescription}
+                      onContributionSubmit={() => handleAddContribution(goal.id)}
+                      isSubmitting={contributionMutation.isPending}
                       onPause={() => pauseMutation.mutate(goal.id)}
                       onDelete={() => {
                         if (confirm('Are you sure you want to delete this goal?')) {
@@ -238,6 +315,17 @@ export default function FinancialGoalsPage() {
                       key={goal.id} 
                       goal={goal} 
                       currency={currency}
+                      accounts={accounts}
+                      isContributing={false}
+                      contributionAmount=""
+                      contributionAccountId=""
+                      contributionDescription=""
+                      onContributionToggle={() => {}}
+                      onContributionAmountChange={() => {}}
+                      onContributionAccountChange={() => {}}
+                      onContributionDescriptionChange={() => {}}
+                      onContributionSubmit={() => {}}
+                      isSubmitting={false}
                       onPause={() => pauseMutation.mutate(goal.id)}
                       onDelete={() => {
                         if (confirm('Are you sure you want to delete this goal?')) {
@@ -260,11 +348,38 @@ export default function FinancialGoalsPage() {
 interface GoalCardProps {
   goal: FinancialGoal;
   currency: string;
+  accounts: Account[];
+  isContributing: boolean;
+  contributionAmount: string;
+  contributionAccountId: string;
+  contributionDescription: string;
+  onContributionToggle: () => void;
+  onContributionAmountChange: (value: string) => void;
+  onContributionAccountChange: (value: string) => void;
+  onContributionDescriptionChange: (value: string) => void;
+  onContributionSubmit: () => void;
+  isSubmitting: boolean;
   onPause: () => void;
   onDelete: () => void;
 }
 
-function GoalCard({ goal, currency, onPause, onDelete }: GoalCardProps) {
+function GoalCard({ 
+  goal, 
+  currency, 
+  accounts,
+  isContributing,
+  contributionAmount,
+  contributionAccountId,
+  contributionDescription,
+  onContributionToggle,
+  onContributionAmountChange,
+  onContributionAccountChange,
+  onContributionDescriptionChange,
+  onContributionSubmit,
+  isSubmitting,
+  onPause, 
+  onDelete 
+}: GoalCardProps) {
   const [showActions, setShowActions] = useState(false);
   
   const getStatusColor = (status: string) => {
@@ -392,6 +507,75 @@ function GoalCard({ goal, currency, onPause, onDelete }: GoalCardProps) {
             </div>
           </div>
         </div>
+
+        {/* Add Contribution Button & Form */}
+        {!goal.isPaused && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            {!isContributing ? (
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={onContributionToggle}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Add Contribution
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Add Contribution</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={contributionAmount}
+                    onChange={(e) => onContributionAmountChange(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Note (optional)"
+                    value={contributionDescription}
+                    onChange={(e) => onContributionDescriptionChange(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <select
+                  value={contributionAccountId}
+                  onChange={(e) => onContributionAccountChange(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white dark:bg-gray-800 dark:border-gray-600"
+                >
+                  <option value="">Select account (debit from)</option>
+                  {accounts.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} ({formatCurrency(account.balance, currency)})
+                    </option>
+                  ))}
+                </select>
+                {accounts.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    No accounts found. <Link href="/accounts" className="underline">Create an account</Link> first.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={onContributionToggle}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={onContributionSubmit}
+                    isLoading={isSubmitting}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

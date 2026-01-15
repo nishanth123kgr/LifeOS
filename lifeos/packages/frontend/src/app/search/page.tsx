@@ -6,7 +6,6 @@ import {
   Target,
   Dumbbell,
   CheckSquare,
-  Settings2,
   BookOpen,
   FileText,
   X,
@@ -25,7 +24,7 @@ import { debounce, cn } from '@/lib/utils';
 
 interface SearchResult {
   id: string;
-  type: 'financial_goal' | 'fitness_goal' | 'habit' | 'life_system' | 'journal' | 'achievement';
+  type: 'financial_goal' | 'fitness_goal' | 'habit' | 'journal' | 'achievement';
   title: string;
   description?: string;
   metadata?: Record<string, any>;
@@ -66,15 +65,6 @@ const typeConfig: Record<string, {
     lightBg: 'bg-orange-50 dark:bg-orange-500/10',
     border: 'border-orange-200 dark:border-orange-500/30',
     link: '/habits',
-  },
-  life_system: {
-    icon: Settings2,
-    label: 'Life System',
-    color: 'text-purple-600 dark:text-purple-400',
-    bg: 'bg-purple-500',
-    lightBg: 'bg-purple-50 dark:bg-purple-500/10',
-    border: 'border-purple-200 dark:border-purple-500/30',
-    link: '/systems',
   },
   journal: {
     icon: BookOpen,

@@ -24,15 +24,61 @@ import {
   ArrowLeft,
   PiggyBank,
   Receipt,
-  BarChart3
+  BarChart3,
+  Link2,
+  Target,
+  X,
+  Settings,
+  DollarSign,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface LinkedGoal {
+  id: string;
+  name: string;
+  type: string;
+  targetAmount: number;
+  currentAmount: number;
+}
+
+interface Transaction {
+  id: string;
+  amount: number;
+  type: string;
+  description?: string;
+  source?: string;
+  destination?: string;
+  date: string;
+  fromAccountId?: string;
+  toAccountId?: string;
+}
+
+interface Account {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+}
 
 interface BudgetItem {
   id: string;
   category: string;
+  name?: string;
   planned: number;
   actual: number;
+  linkedGoalId?: string;
+  linkedGoal?: LinkedGoal;
+  transactions?: Transaction[];
+}
+
+interface FinancialGoal {
+  id: string;
+  name: string;
+  type: string;
+  targetAmount: number;
+  currentAmount: number;
+  status: string;
 }
 
 interface Budget {
@@ -56,9 +102,8 @@ const budgetCategories = [
   { value: 'HEALTHCARE', label: 'Healthcare' },
   { value: 'ENTERTAINMENT', label: 'Entertainment' },
   { value: 'SHOPPING', label: 'Shopping' },
-  { value: 'SAVINGS', label: 'Savings' },
-  { value: 'INVESTMENTS', label: 'Investments' },
   { value: 'MISCELLANEOUS', label: 'Miscellaneous' },
+  { value: 'FINANCIAL_GOAL', label: 'Financial Goal' },
 ];
 
 const months = [
@@ -86,6 +131,11 @@ export default function BudgetPage() {
   const currentDate = new Date();
   const [selectedBudget, setSelectedBudget] = useState<{ month: number; year: number } | null>(null);
   const [editingItems, setEditingItems] = useState<Record<string, { planned: number; actual: number }>>({});
+  const [linkingItemId, setLinkingItemId] = useState<string | null>(null);
+  const [addingExpenseItemId, setAddingExpenseItemId] = useState<string | null>(null);
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseFromAccountId, setExpenseFromAccountId] = useState('');
 
   // Fetch all budgets
   const { data: allBudgetsData, isLoading: isLoadingAll } = useQuery<{ data: { budgets: Budget[] } }>({
@@ -106,6 +156,27 @@ export default function BudgetPage() {
     enabled: !!selectedBudget,
   });
 
+  // Fetch financial goals for linking
+  const { data: goalsData } = useQuery<{ data: { goals: FinancialGoal[] } }>({
+    queryKey: ['financial-goals'],
+    queryFn: async () => {
+      const response = await api.get('/financial-goals');
+      return response.data;
+    },
+  });
+
+  // Fetch user accounts for expense tracking
+  const { data: accountsData } = useQuery<{ accounts: Account[] }>({
+    queryKey: ['accounts'],
+    queryFn: async () => {
+      const response = await api.get('/accounts');
+      return response.data;
+    },
+  });
+
+  const accounts = accountsData?.accounts || [];
+  const financialGoals = goalsData?.data?.goals?.filter(g => g.status !== 'COMPLETED' && g.status !== 'ARCHIVED') || [];
+
   const updateMutation = useMutation({
     mutationFn: ({ items, income }: { items: any[]; income?: number }) =>
       api.patch(`/budgets/${selectedBudget?.year}/${selectedBudget?.month}`, { items, income }),
@@ -116,6 +187,78 @@ export default function BudgetPage() {
     },
     onError: () => toast.error('Failed to update budget'),
   });
+
+  const linkMutation = useMutation({
+    mutationFn: ({ itemId, goalId }: { itemId: string; goalId: string | null }) =>
+      api.patch(`/budgets/items/${itemId}/link`, { goalId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      setLinkingItemId(null);
+      toast.success('Goal linked successfully!');
+    },
+    onError: () => toast.error('Failed to link goal'),
+  });
+
+  const initializeMutation = useMutation({
+    mutationFn: () => api.post(`/budgets/${selectedBudget?.year}/${selectedBudget?.month}/initialize`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      toast.success('Budget categories initialized!');
+    },
+    onError: () => toast.error('Failed to initialize categories'),
+  });
+
+  // Transaction mutation
+  const addTransactionMutation = useMutation({
+    mutationFn: (data: { 
+      amount: number; 
+      type: string; 
+      description?: string; 
+      budgetItemId: string;
+      financialGoalId?: string;
+      fromAccountId?: string;
+      toAccountId?: string;
+    }) => api.post('/transactions', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget'] });
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success('Transaction added!');
+      setAddingExpenseItemId(null);
+      setExpenseAmount('');
+      setExpenseDescription('');
+      setExpenseFromAccountId('');
+    },
+    onError: () => toast.error('Failed to add transaction'),
+  });
+
+  const handleAddExpense = (item: BudgetItem) => {
+    const amount = parseFloat(expenseAmount);
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (!expenseFromAccountId) {
+      toast.error('Please select an account');
+      return;
+    }
+
+    const isGoalContribution = item.category === 'FINANCIAL_GOAL' && item.linkedGoalId;
+    
+    addTransactionMutation.mutate({
+      amount,
+      type: isGoalContribution ? 'GOAL_CONTRIBUTION' : 'EXPENSE',
+      description: expenseDescription || undefined,
+      budgetItemId: item.id,
+      financialGoalId: isGoalContribution ? item.linkedGoalId : undefined,
+      fromAccountId: expenseFromAccountId,
+    });
+  };
 
   const handleItemUpdate = (category: string, field: 'planned' | 'actual', value: number) => {
     setEditingItems(prev => ({
@@ -303,27 +446,41 @@ export default function BudgetPage() {
                     }
                   />
                   <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                    {budget.items.map((item) => {
+                    {budget.items.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">No budget categories yet</p>
+                        <Button onClick={() => initializeMutation.mutate()} isLoading={initializeMutation.isPending}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Initialize Categories
+                        </Button>
+                      </div>
+                    ) : budget.items.map((item) => {
                       const category = budgetCategories.find(c => c.value === item.category);
                       const percentage = item.planned > 0 ? (item.actual / item.planned) * 100 : 0;
                       const isOver = percentage > 100;
+                      const isFinancialGoal = item.category === 'FINANCIAL_GOAL';
+                      const displayName = isFinancialGoal && item.linkedGoal 
+                        ? item.linkedGoal.name 
+                        : (item.name || category?.label || item.category);
 
                       return (
-                        <div key={item.category} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <div key={item.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-gray-900 dark:text-white">{category?.label || item.category}</span>
                             <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                className="w-24 text-right input py-1 text-sm"
-                                defaultValue={item.actual}
-                                onBlur={(e) => {
-                                  const val = e.target.value.replace(/[^0-9.]/g, '');
-                                  handleItemUpdate(item.category, 'actual', parseFloat(val) || 0);
-                                }}
-                                placeholder="Actual"
-                              />
+                              {isFinancialGoal && (
+                                <Target className="w-4 h-4 text-emerald-500" />
+                              )}
+                              <span className="font-medium text-gray-900 dark:text-white">{displayName}</span>
+                              {isFinancialGoal && item.linkedGoal && (
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                                  Goal
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 text-right py-1 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 rounded-md px-2">
+                                {item.actual.toLocaleString()}
+                              </div>
                               <span className="text-gray-400">/</span>
                               <input
                                 type="text"
@@ -338,6 +495,7 @@ export default function BudgetPage() {
                               />
                             </div>
                           </div>
+
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
                               <div
@@ -348,7 +506,76 @@ export default function BudgetPage() {
                             <span className={cn('text-xs font-medium w-12 text-right', isOver ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400')}>
                               {percentage.toFixed(0)}%
                             </span>
+                            <button
+                              onClick={() => setAddingExpenseItemId(addingExpenseItemId === item.id ? null : item.id)}
+                              className={cn(
+                                'p-1.5 rounded-md transition-colors',
+                                addingExpenseItemId === item.id
+                                  ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600'
+                                  : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500'
+                              )}
+                              title="Add expense"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
                           </div>
+
+                          {/* Add Expense Form */}
+                          {addingExpenseItemId === item.id && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-200 dark:border-blue-500/30">
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mb-2 font-medium">
+                                {item.category === 'FINANCIAL_GOAL' ? 'Add Contribution' : 'Add Expense'}
+                              </p>
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <Input
+                                      type="number"
+                                      placeholder="Amount"
+                                      value={expenseAmount}
+                                      onChange={(e) => setExpenseAmount(e.target.value)}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <Input
+                                      type="text"
+                                      placeholder="Description (optional)"
+                                      value={expenseDescription}
+                                      onChange={(e) => setExpenseDescription(e.target.value)}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <select
+                                    value={expenseFromAccountId}
+                                    onChange={(e) => setExpenseFromAccountId(e.target.value)}
+                                    className="flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 dark:border-gray-600"
+                                  >
+                                    <option value="">Select account (debit from)</option>
+                                    {accounts.map(account => (
+                                      <option key={account.id} value={account.id}>
+                                        {account.name} ({formatCurrency(account.balance, currency)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAddExpense(item)}
+                                    isLoading={addTransactionMutation.isPending}
+                                  >
+                                    Add
+                                  </Button>
+                                </div>
+                                {accounts.length === 0 && (
+                                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                                    No accounts found. <Link href="/accounts" className="underline">Create an account</Link> first.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -379,12 +606,20 @@ export default function BudgetPage() {
                   Track your income and expenses. Create and manage budgets for each month.
                 </p>
               </div>
-              <Link href="/budget/new">
-                <Button className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Budget
-                </Button>
-              </Link>
+              <div className="flex gap-2">
+                <Link href="/budget/template">
+                  <Button variant="outline" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border-white/30 text-white">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Template
+                  </Button>
+                </Link>
+                <Link href="/budget/new">
+                  <Button className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Budget
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
 

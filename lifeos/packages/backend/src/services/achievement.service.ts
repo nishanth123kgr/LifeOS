@@ -132,14 +132,12 @@ export class AchievementService {
       financialGoals,
       fitnessGoals,
       habits,
-      systems,
       userAchievements,
       allAchievements,
     ] = await Promise.all([
       prisma.financialGoal.findMany({ where: { userId } }),
       prisma.fitnessGoal.findMany({ where: { userId } }),
       prisma.habit.findMany({ where: { userId } }),
-      prisma.lifeSystem.findMany({ where: { userId } }),
       prisma.userAchievement.findMany({ where: { userId } }),
       prisma.achievement.findMany(),
     ]);
@@ -186,9 +184,6 @@ export class AchievementService {
           break;
         case 'fitness_completed':
           shouldUnlock = completedFitnessGoals >= criteria.value;
-          break;
-        case 'system_count':
-          shouldUnlock = systems.length >= criteria.value;
           break;
       }
 

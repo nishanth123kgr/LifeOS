@@ -80,19 +80,6 @@ export class ExportService {
       });
     }
 
-    if (options.includeSystems !== false) {
-      data.lifeSystems = await prisma.lifeSystem.findMany({
-        where: { 
-          userId,
-          ...(hasDateFilter && { createdAt: dateFilter }),
-        },
-        include: {
-          adherenceLogs: hasDateFilter ? { where: { date: dateFilter } } : true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-
     if (options.includeBudgets !== false) {
       data.budgets = await prisma.budget.findMany({
         where: { 
@@ -196,27 +183,6 @@ export class ExportService {
           ciHeaders.map(h => this.escapeCSV(c[h])).join(',')
         );
         csvFiles['habit_check_ins.csv'] = [ciHeaders.join(','), ...ciRows].join('\n');
-      }
-    }
-
-    // Life Systems
-    if (data.lifeSystems?.length) {
-      const headers = ['id', 'name', 'description', 'category', 'isActive', 'adherenceTarget', 'createdAt'];
-      const rows = data.lifeSystems.map((s: any) => 
-        headers.map(h => this.escapeCSV(s[h])).join(',')
-      );
-      csvFiles['life_systems.csv'] = [headers.join(','), ...rows].join('\n');
-
-      // Adherence logs
-      const allAdherence = data.lifeSystems.flatMap((s: any) => 
-        (s.adherenceLogs || []).map((a: any) => ({ ...a, systemName: s.name }))
-      );
-      if (allAdherence.length) {
-        const adhHeaders = ['id', 'systemName', 'date', 'adhered', 'notes'];
-        const adhRows = allAdherence.map((a: any) => 
-          adhHeaders.map(h => this.escapeCSV(a[h])).join(',')
-        );
-        csvFiles['system_adherence.csv'] = [adhHeaders.join(','), ...adhRows].join('\n');
       }
     }
 
@@ -386,7 +352,6 @@ export class ExportService {
       fitnessGoals,
       habits,
       checkIns,
-      systems,
       budgets,
       snapshots,
       achievements,
@@ -396,7 +361,6 @@ export class ExportService {
       prisma.fitnessGoal.count({ where: { userId } }),
       prisma.habit.count({ where: { userId } }),
       prisma.habitCheckIn.count({ where: { habit: { userId } } }),
-      prisma.lifeSystem.count({ where: { userId } }),
       prisma.budget.count({ where: { userId } }),
       prisma.progressSnapshot.count({ where: { userId } }),
       prisma.userAchievement.count({ where: { userId } }),
@@ -408,12 +372,11 @@ export class ExportService {
       fitnessGoals,
       habits,
       habitCheckIns: checkIns,
-      lifeSystems: systems,
       budgets,
       progressSnapshots: snapshots,
       achievements,
       journalEntries: journals,
-      totalRecords: financialGoals + fitnessGoals + habits + checkIns + systems + budgets + snapshots + achievements + journals,
+      totalRecords: financialGoals + fitnessGoals + habits + checkIns + budgets + snapshots + achievements + journals,
     };
   }
 }

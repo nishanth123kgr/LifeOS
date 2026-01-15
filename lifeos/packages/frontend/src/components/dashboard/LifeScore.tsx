@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Wallet, Dumbbell, CheckSquare, Settings2 } from 'lucide-react';
+import { Wallet, Dumbbell, CheckSquare } from 'lucide-react';
 
 interface LifeScoreProps {
   score: number;
@@ -71,13 +71,11 @@ interface ScoreBreakdownProps {
     finance: number;
     fitness: number;
     habits: number;
-    systems: number;
   };
   weights: {
     finance: number;
     fitness: number;
     habits: number;
-    systems: number;
   };
 }
 
@@ -86,7 +84,6 @@ export function ScoreBreakdown({ scores, weights }: ScoreBreakdownProps) {
     { key: 'finance', label: 'Finance', icon: Wallet, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20' },
     { key: 'fitness', label: 'Fitness', icon: Dumbbell, color: 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-500/20' },
     { key: 'habits', label: 'Habits', icon: CheckSquare, color: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20' },
-    { key: 'systems', label: 'Systems', icon: Settings2, color: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/20' },
   ] as const;
 
   return (

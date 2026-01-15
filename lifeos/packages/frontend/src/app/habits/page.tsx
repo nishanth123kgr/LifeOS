@@ -36,6 +36,13 @@ interface Habit {
   checkIns: Array<{ date: string; completed: boolean }>;
 }
 
+const frequencies = [
+  { value: 'DAILY', label: 'Daily' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'WEEKDAYS', label: 'Weekdays' },
+  { value: 'WEEKENDS', label: 'Weekends' },
+];
+
 export default function HabitsPage() {
   const queryClient = useQueryClient();
 

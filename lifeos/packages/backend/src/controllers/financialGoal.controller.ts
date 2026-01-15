@@ -28,14 +28,30 @@ export const getFinancialGoals = async (
         ...(status && { status: status as GoalStatus }),
         isArchived: archived === 'true',
       },
+      include: {
+        budgetAllocations: {
+          include: {
+            budget: {
+              select: {
+                month: true,
+                year: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate progress for each goal
-    const goalsWithProgress = goals.map(goal => ({
-      ...goal,
-      progress: Math.min((goal.currentAmount / goal.targetAmount) * 100, 100),
-    }));
+    // Calculate progress and monthly allocation for each goal
+    const goalsWithProgress = goals.map(goal => {
+      const monthlyBudgetTotal = goal.budgetAllocations.reduce((sum, item) => sum + item.planned, 0);
+      return {
+        ...goal,
+        progress: Math.min((goal.currentAmount / goal.targetAmount) * 100, 100),
+        monthlyBudgetTotal,
+      };
+    });
 
     res.json({
       status: 'success',
@@ -59,11 +75,29 @@ export const getFinancialGoal = async (
         id,
         userId: req.userId,
       },
+      include: {
+        budgetAllocations: {
+          include: {
+            budget: {
+              select: {
+                month: true,
+                year: true,
+              },
+            },
+          },
+        },
+        transactions: {
+          orderBy: { date: 'desc' },
+          take: 20,
+        },
+      },
     });
 
     if (!goal) {
       throw new AppError('Goal not found', 404);
     }
+
+    const monthlyBudgetTotal = goal.budgetAllocations.reduce((sum, item) => sum + item.planned, 0);
 
     res.json({
       status: 'success',
@@ -71,6 +105,7 @@ export const getFinancialGoal = async (
         goal: {
           ...goal,
           progress: Math.min((goal.currentAmount / goal.targetAmount) * 100, 100),
+          monthlyBudgetTotal,
         },
       },
     });
