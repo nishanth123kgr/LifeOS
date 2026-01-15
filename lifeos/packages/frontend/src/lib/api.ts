@@ -1,10 +1,11 @@
 import axios from 'axios';
 
 // Use environment variable for API URL, fallback to relative path for local dev
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+// NEXT_PUBLIC_API_URL should be the full API base (e.g., https://api.example.com/api/v1)
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const api = axios.create({
-  baseURL: apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`,
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
