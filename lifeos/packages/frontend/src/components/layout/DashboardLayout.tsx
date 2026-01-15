@@ -37,7 +37,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       <Sidebar />
       <main className="lg:pl-[284px] min-h-screen relative">
-        <div className="pt-16 lg:pt-0 p-4 sm:p-6 lg:py-6 lg:pr-6 lg:pl-3">
+        <div className="p-4 pt-16 sm:p-6 sm:pt-16 lg:p-6 lg:pl-3">
           {children}
         </div>
       </main>
