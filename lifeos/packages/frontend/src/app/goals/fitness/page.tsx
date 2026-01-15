@@ -89,14 +89,6 @@ export default function FitnessGoalsPage() {
     ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) 
     : 0;
 
-  const goals = data?.data?.goals || [];
-  const activeGoals = goals.filter(g => !g.isAchieved);
-  const achievedGoals = goals.filter(g => g.isAchieved);
-  const avgProgress = goals.length > 0 
-    ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) 
-    : 0;
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
   const getMetricIcon = (metricType: string) => {
     switch (metricType) {
       case 'WEIGHT':

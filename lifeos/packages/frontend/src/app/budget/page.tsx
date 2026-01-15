@@ -83,6 +83,7 @@ export default function BudgetPage() {
   const { user } = useAuthStore();
   const currency = user?.currency || 'INR';
 
+  const currentDate = new Date();
   const [selectedBudget, setSelectedBudget] = useState<{ month: number; year: number } | null>(null);
   const [editingItems, setEditingItems] = useState<Record<string, { planned: number; actual: number }>>({});
 
